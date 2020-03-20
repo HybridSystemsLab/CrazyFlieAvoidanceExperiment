@@ -163,7 +163,7 @@ if __name__ == "__main__":
                 L.append('q')
 
             # Get rigid body data from Optitrack (8, 32 b4)
-            frame_data = processor.recv_data(rigid_body_ids=[1, 2], mode='quaternion')
+            frame_data = processor.recv_data(rigid_body_ids=[1], mode='quaternion')
             print(frame_data)
             sys.stdout.flush()
             #print frame_data
@@ -181,7 +181,10 @@ if __name__ == "__main__":
 
             #current possition of Quad and projectile
             x, y, z = state[0], state[1], state[2]
-            curCoords[0], curCoords[1], curCoords[2] = -frame_data[1][0], frame_data[1][2], frame_data[1][1]
+            if(len(frame_data)==1):
+				curCoords=curCoords;
+            else:
+				curCoords[0], curCoords[1], curCoords[2] = -frame_data[1][0], frame_data[1][2], frame_data[1][1]
 
             # if the specified rigid bodies are in view
 
