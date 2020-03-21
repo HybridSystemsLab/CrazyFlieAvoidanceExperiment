@@ -53,14 +53,14 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     K = 5
 
     # epsilon: distance away from target that we tolerate (0.5)
-    epsilon = 0.5
+    epsilon = 0.1
 
     # vs: Sampling velocity that is analogous to sampling time
     # Product of vs and ts yield the space discretization that structures each linear trajectory.
     v_s = 2
     
     # errorSetSize: Size of possible input error used to create set of possible locations
-    errorSetSize = 0.1;
+    errorSetSize = 0.2;
 
     # quad and projectile prediction lists
     #xiPredict = np.asfarray([[0 for i in range(3)] for j in range(N)])
@@ -78,15 +78,16 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
 
     x_0 = x
     y_0 = y
-    z_0 = z
-    # z_0 = 0.4
+    # z_0 = z
+    z_0 = 0.4
 
     # safety net
     R_n = 1.0e-04
     R_d = 1.0e-03
     R_v = 6.0e-02
     R_p = 6.0e-02
-    R_col = 0.2#6* (R_n + R_d + R_v + R_p)
+    # R_col = 0.2#6* (R_n + R_d + R_v + R_p)
+    R_col = 0.15
     collision = False
 
     setAdjust = errorSetSize;
@@ -180,7 +181,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
 
     # if we are close to the target and there is no predicted collision, then remain at target
     if(not collision and epsilonTarget(x_0, y_0, z_0, target.tolist(), epsilon)):
-        # print "At Target"
+        # print "At Safe Target"
         u_opt = target.tolist()
     
     # otherwise, run optimaization and trajectory planning 
@@ -255,7 +256,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     #for i in range(0,6):
     #    ret.append(pPredict[M-1,i].tolist())        
 
-    #print(time.time() - start)
+    # print(time.time() - start)
 
     return ret
 
