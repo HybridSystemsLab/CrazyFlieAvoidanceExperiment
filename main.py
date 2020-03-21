@@ -164,8 +164,8 @@ if __name__ == "__main__":
 
             # Get rigid body data from Optitrack (8, 32 b4)
             frame_data = processor.recv_data(rigid_body_ids=[1], mode='quaternion')
-            print(frame_data)
-            sys.stdout.flush()
+            # print(frame_data)
+            # sys.stdout.flush()
             #print frame_data
             if frame_history.update(frame_data) is None:
                 detectedCount += 1
