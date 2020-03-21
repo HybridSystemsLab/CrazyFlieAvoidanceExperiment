@@ -60,7 +60,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     v_s = 2
     
     # errorSetSize: Size of possible input error used to create set of possible locations
-    errorSetSize = 0.0;
+    errorSetSize = 0.1;
 
     # quad and projectile prediction lists
     #xiPredict = np.asfarray([[0 for i in range(3)] for j in range(N)])
@@ -89,7 +89,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     R_col = 0.2#6* (R_n + R_d + R_v + R_p)
     collision = False
 
-    setAdjust = R_col/2 + errorSetSize;
+    setAdjust = errorSetSize;
     
     # xiPredict: N x 3 matrix containing predicted vehicle coordinates.
     # pPredict: N x 6 matrix into which N projectile state vectors are stored
@@ -97,10 +97,11 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     # pPredict contains approximate solutions to the initial value problem for the derivative function pDot, 
     #    pDot models projectile dynamics in three dimensions.
 
-    xiPredict = np.asfarray(xi_0)
+    # xiPredict = np.asfarray(xi_0)
+    xiPredictSet = np.concatenate((np.asfarray(xi_0),np.asfarray(xi_0))) + [-R_col,-R_col,-R_col, R_col, R_col ,R_col]
     #pPredict[0][:] = np.asfarray(p_0)
     # pPredictSet: Set around projectile to account for possible pojectile locations
-    pPredictSet[0][:] = np.concatenate((np.asfarray(p_0),np.asfarray(p_0))) + [-setAdjust,-setAdjust,-setAdjust, 0, 0, 0, setAdjust,setAdjust,setAdjust, 0, 0, 0]
+    pPredictSet[0][:] = np.concatenate((np.asfarray(p_0),np.asfarray(p_0))) + [-setAdjust,-setAdjust,-setAdjust, 0, 0, 0, setAdjust, setAdjust, setAdjust, 0, 0, 0]
 
     # pDE.set_initial_value(p_0, 0)
     pDE.set_initial_value(pPredictSet[0], 0)
@@ -129,9 +130,9 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
             # break
             
     for i in range(0, N - 1):
-        if (cubeIntersectCube(xiPredict, xiPredict, pPredictSet[i][0:3], pPredictSet[i][6:9])):
+        if (cubeIntersectCube(xiPredictSet[0:3], xiPredictSet[3:6], pPredictSet[i][0:3], pPredictSet[i][6:9])):
             collision = True
-            print("collision detected at " + str(i) + " time stamp")
+            # print("collision detected at " + str(i) + " time stamp")
             break
     
     
@@ -199,11 +200,12 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
                 #print(u_k[j][0:3])
                 # dist_ij = line2line(u_k[j][0:3], u_k[j + 1][0:3], pPredict[j][0:3], pPredict[j + 1][0:3])
                 # if (dist_ij) <= R_col:
-                if (cubeIntersectCube(xiPredict, xiPredict, pPredictSet[i][0:3], pPredictSet[i][6:9])):
+                if (cubeIntersectCube(xiPredictSet[0:3]+u_k, xiPredictSet[3:6]+u_k, pPredictSet[i][0:3], pPredictSet[i][6:9])):
                     unSafe = True
                     break
 
             if(unSafe == False):
+                # print "*** FOUND SAFE TRAJECTORY ***"
                 safeList.append(u_k)
 
         # Here, safe trajectories are optimized regarding minimal distance to the target.
@@ -214,7 +216,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
             # print "---NO SAFE TRAJECTORIES---"
             u_opt = target.tolist()
         else:
-            print "---SAFE TRAJECTORIES---"
+            # print "---SAFE TRAJECTORIES---"
             #endpoints = [0.0, 0.6, 0.4, 0.0]
 
             for u in safeList:
@@ -225,7 +227,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
                 #print("Cost: " + str(Cost_k) + " for " + str(u[:][M]))
                 if (Cost_k < Cost_min):
                     Cost_min = Cost_k
-                    print "Path not target"
+                    # print "Path not target"
                     u_opt = u[:][M]
 
         '''        # MATLAB

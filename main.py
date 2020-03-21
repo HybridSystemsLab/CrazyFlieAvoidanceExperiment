@@ -242,7 +242,7 @@ if __name__ == "__main__":
                 #zdes = float(destination[2])
                 collision = destination[3]
                 # print("coordinates --> (" + str(xdes) + ", " + str(ydes) + ")")
-                # print("coordinates (" + str(x) + ", " + str(y) + ") --> (" + str(xdes) + ", " + str(ydes) + ")")
+                print("coordinates (" + str(x) + ", " + str(y) + ") --> (" + str(xdes) + ", " + str(ydes) + ")")
                 sys.stdout.flush()
                 r_pid.set_point_to(xdes)
                 p_pid.set_point_to(ydes)
@@ -251,7 +251,7 @@ if __name__ == "__main__":
 
                     output_data=True #start writing to file the trajectories
 
-                    # print("Collision detected --> (" + str(xdes) + ", " + str(ydes) + ")")
+                    print("Collision detected --> (" + str(xdes) + ", " + str(ydes) + ")")
                     sys.stdout.flush()
 
 
