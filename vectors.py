@@ -208,5 +208,75 @@ def pDot(t, projectile):
     # projectileDot: Derivative of projectile state vector.
     projectileDot = [v_x, v_y, v_z, a_x, a_y, a_z]
     return projectileDot
+    
+# pDot: Equations of motion that govern projectile dynamics.
+def pDotSet(t, projectile):
+    # C_D: Drag coefficient associated with shape of projectile.
+    C_D = 1.28
+
+    # rho: Air density (kg/m^3).
+    rho = 1.2041
+
+    # SA: Surface area of projectile (m^2).
+    SA = 1.8e-3
+
+    # m: Mass of projectile (kg),
+    m = 0.2
+
+    # g: Gravitational constant.
+    g = 9.8
+
+    # v_x,v_y,v_z: Projectile velocities in specified direction.
+    v1_x = projectile[3]
+    v1_y = projectile[4]
+    v1_z = projectile[5]
+    v2_x = projectile[9]
+    v2_y = projectile[10]
+    v2_z = projectile[11]
+
+    # R_x,R_y,R_z: Resistance exerted on projectile in specified direction.
+    R1_x = (C_D * rho * SA * (v1_x) ** 2) / 2
+    R1_y = (C_D * rho * SA * (v1_y) ** 2) / 2
+    R1_z = (C_D * rho * SA * (v1_z) ** 2) / 2
+    R2_x = (C_D * rho * SA * (v2_x) ** 2) / 2
+    R2_y = (C_D * rho * SA * (v2_y) ** 2) / 2
+    R2_z = (C_D * rho * SA * (v2_z) ** 2) / 2
+
+    # a_x,a_y,a_z: Projectile accelerations in specificed direction.
+    # air resistance depends on the sign of the velocity
+    if(v1_x < 0):
+        a1_x = R1_x / m
+    else:
+        a1_x = -R1_x / m
+
+    if(v1_y < 0):
+        a1_y = R1_y / m
+    else:
+        a1_y = -R1_y / m
+
+    if(v1_z < 0):
+        a1_z = -g + R1_z / m
+    else:
+        a1_z = -g - R1_z / m
+        
+    if(v2_x < 0):
+        a2_x = R2_x / m
+    else:
+        a2_x = -R2_x / m
+
+    if(v2_y < 0):
+        a2_y = R2_y / m
+    else:
+        a2_y = -R2_y / m
+
+    if(v2_z < 0):
+        a2_z = -g + R2_z / m
+    else:
+        a2_z = -g - R2_z / m
+
+
+    # projectileDot: Derivative of projectile state vector.
+    projectileDot = [v1_x, v1_y, v1_z, a1_x, a1_y, a1_z, v2_x, v2_y, v2_z, a2_x, a2_y, a2_z]
+    return projectileDot
 
 
