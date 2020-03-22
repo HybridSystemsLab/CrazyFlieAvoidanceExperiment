@@ -61,8 +61,10 @@ client_conn = context.socket(zmq.PUSH)
 client_conn.connect("tcp://127.0.0.1:1212")
 
 # PID constants
-rollP, rollI, rollD = 13, .6, 10
-pitchP, pitchI, pitchD = 13, .6, 10
+# rollP, rollI, rollD = 13, .6, 10
+# pitchP, pitchI, pitchD = 13, .6, 10
+rollP, rollI, rollD = 13, 0, 10
+pitchP, pitchI, pitchD = 13, 0, 10
 
 #rollP, rollI, rollD = 12, .2, 1
 #pitchP, pitchI, pitchD = 12, .2, 1
@@ -242,8 +244,8 @@ if __name__ == "__main__":
                 #zdes = float(destination[2])
                 collision = destination[3]
                 # print("coordinates --> (" + str(xdes) + ", " + str(ydes) + ")")
-                # print("coordinates (" + str(x) + ", " + str(y) + ") --> (" + str(xdes) + ", " + str(ydes) + ")")
-                # sys.stdout.flush()
+                print("coordinates (" + str(x) + ", " + str(y) + ") --> (" + str(xdes) + ", " + str(ydes) + ")")
+                sys.stdout.flush()
                 r_pid.set_point_to(xdes)
                 p_pid.set_point_to(ydes)
 

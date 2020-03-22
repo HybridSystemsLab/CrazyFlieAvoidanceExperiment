@@ -8,6 +8,9 @@ import time
 from vectors import *
 from cost import *
 
+BounceCheck = True
+restitution = 0.85
+
 def epsilonTarget(x, y, z, target, epsilon):
     if(abs(target[0])-abs(x)<epsilon and abs(target[1])-abs(y)<epsilon and abs(target[2])-abs(z)<epsilon):
         return True
@@ -112,6 +115,17 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
         # pPredict[j][:] = pDE.integrate(pDE.t + t_s)
         #xiPredict[j][:] = np.subtract(xiPredict[j - 1][:], t_s * (target - xiPredict[j - 1][:]))
         pPredictSet[j][:] = pDE.integrate(pDE.t + t_s)
+        if(BounceCheck):
+            # print (pPredictSet[j][2]+pPredictSet[j][8])/2
+            if((pPredictSet[j][2]+pPredictSet[j][8])/2 < 0):
+                temp = [pPredictSet[j][2], pPredictSet[j][5], pPredictSet[j][8], pPredictSet[j][11]]
+                pPredictSet[j][5] = temp[1] * -restitution
+                pPredictSet[j][11] = temp[3] * -restitution
+                pPredictSet[j][2] = temp[2] * -restitution
+                pPredictSet[j][8] = temp[0] * -restitution
+                # print "Bounce: (" + str(temp[0]) + ' ' + str(temp[2]) + ' ' + str(temp[1]) + ' ' + str(temp[3]) + ") --> (" + str(pPredictSet[j][2]) + ' ' + str(pPredictSet[j][8])+ ' ' + str(pPredictSet[j][5]) + ' ' + str(pPredictSet[j][11]) + ")"
+                #Update values in pDE
+                pDE.set_initial_value(pPredictSet[j], 0)
     
     # MATLAB
     #projfile = open('projectiledata.txt', 'a')
