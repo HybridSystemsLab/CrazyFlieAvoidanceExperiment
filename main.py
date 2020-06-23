@@ -109,7 +109,8 @@ cmd = {
 
 x, y, z, angle, yaw, roll, pitch = 0, 0, 0, 0, 0, 0, 0
 yaw_sp = 0
-
+calibrated = 0
+calibration_state = []
 
 
 """
@@ -166,9 +167,7 @@ if __name__ == "__main__":
 
             # Get rigid body data from Optitrack (8, 32 b4)
             frame_data = processor.recv_data(rigid_body_ids=[1], mode='quaternion')
-            # print(frame_data)
-            # sys.stdout.flush()
-            #print frame_data
+            
             if frame_history.update(frame_data) is None:
                 detectedCount += 1
 
@@ -187,150 +186,178 @@ if __name__ == "__main__":
 				curCoords=curCoords;
             else:
 				curCoords[0], curCoords[1], curCoords[2] = -frame_data[1][0], frame_data[1][2], frame_data[1][1]
-
-            # if the specified rigid bodies are in view
-
-            data_out = open('Trajectory_actual.txt', 'a+')
-
-
-            if (time.time() - prevTime > .002):
-            # get the time step
-                curTime = time.time()
-                projdt = curTime - prevTime
-
-
-
-                projdistance[0] = curCoords[0] - prevCoords[0]
-                projdistance[1] = curCoords[1] - prevCoords[1]
-                projdistance[2] = curCoords[2] - prevCoords[2]
-
-                # only valid velocity if the object has moved more than .75 mm in any direction
-                projvelocity[0] = validVelocity(projdistance[0], projdt, .005)
-                projvelocity[1] = validVelocity(projdistance[1], projdt, .005)
-                projvelocity[2] = validVelocity(projdistance[2], projdt, .005)
-
-                # first packet that is send has a huge velocity
-                # -- we shouldn't be seeing any high velocities
-                if (abs(projvelocity[0]) > 30):
-                    projvelocity[0] = 0
-                if (abs(projvelocity[1]) > 30):
-                    projvelocity[1] = 0
-                if (abs(projvelocity[2]) > 30):
-                    projvelocity[2] = 0
-
-                # store the time step and store the last coordinates
-                prevTime = curTime
-                prevCoords[0], prevCoords[1], prevCoords[2] = curCoords[0], curCoords[1], curCoords[2]
-
-            # create the state vector
-            state = [float(x), float(y), float(z), float(curCoords[0]), float(curCoords[1]), float(curCoords[2]),
-                     float(projvelocity[0]), float(projvelocity[1]), float(projvelocity[2])]
-
-
             
-            # if the thread has completed a round, start it again with the most recent data
-            if (threadFin == True):
-                TrajectoryPlanner = pool.apply_async(plan.trajectory, tuple(state))  # tuple of args for foo
-                threadFin = False
-
-            # if the thread is ready, get the planned trajectory and set PIDs
-            if (TrajectoryPlanner.ready()):
-                threadFin = True
-
-                destination = TrajectoryPlanner.get()  # get the return value from your function.
-
-                xdes = destination[0]
-                ydes = destination[1]
-                #zdes = float(destination[2])
-                collision = destination[3]
-                # print("coordinates --> (" + str(xdes) + ", " + str(ydes) + ")")
-                print("coordinates (" + str(x) + ", " + str(y) + ") --> (" + str(xdes) + ", " + str(ydes) + ")")
-                sys.stdout.flush()
-                r_pid.set_point_to(xdes)
-                p_pid.set_point_to(ydes)
-
-                if(collision == True):
-
-                    # output_data=True #start writing to file the trajectories
-
-                    print("Collision detected --> (" + str(xdes) + ", " + str(ydes) + ")")
+            if(calibrated==0):
+                print "Calibrating"
+                if len(calibration_state) == 0:
+                    calibration_state = state[0:2]
+                    sendToClient(6,0, 50, 0)
+                    time.sleep(0.4)
+                else:
+                    x_cal = state[0] - calibration_state[0]
+                    y_cal = state[1] - calibration_state[1]
+                    if(x_cal != 0):
+                        angle = math.degrees(math.atan(y_cal/x_cal))
+                    else:
+                        angle = 180 - math.sign(y_cal)
+                    if(abs(angle)<5):
+                        calibrated = 1;
+                        print "\n\n\n\n\n---Calibrated---\n\n\n\n\n"
+                    else:
+                        calibration_state = []
+                        calibrated = 0
+                        yaw_out = yaw = y_pid.update(((angle - yaw_sp + 180) % 360) - 180)
+                        sendToClient(0,0, 50, yaw_out)
+                        time.sleep(0.4)
+                    
+                
+            else:
+                print "Running"
+                # if the specified rigid bodies are in view
+                data_out = open('Trajectory_actual.txt', 'a+')
+    
+    
+                if (time.time() - prevTime > .002):
+                # get the time step
+                    curTime = time.time()
+                    projdt = curTime - prevTime
+    
+    
+    
+                    projdistance[0] = curCoords[0] - prevCoords[0]
+                    projdistance[1] = curCoords[1] - prevCoords[1]
+                    projdistance[2] = curCoords[2] - prevCoords[2]
+    
+                    # only valid velocity if the object has moved more than .75 mm in any direction
+                    projvelocity[0] = validVelocity(projdistance[0], projdt, .005)
+                    projvelocity[1] = validVelocity(projdistance[1], projdt, .005)
+                    projvelocity[2] = validVelocity(projdistance[2], projdt, .005)
+    
+                    # first packet that is send has a huge velocity
+                    # -- we shouldn't be seeing any high velocities
+                    if (abs(projvelocity[0]) > 30):
+                        projvelocity[0] = 0
+                    if (abs(projvelocity[1]) > 30):
+                        projvelocity[1] = 0
+                    if (abs(projvelocity[2]) > 30):
+                        projvelocity[2] = 0
+    
+                    # store the time step and store the last coordinates
+                    prevTime = curTime
+                    prevCoords[0], prevCoords[1], prevCoords[2] = curCoords[0], curCoords[1], curCoords[2]
+    
+                # create the state vector
+                state = [float(x), float(y), float(z), float(curCoords[0]), float(curCoords[1]), float(curCoords[2]),
+                        float(projvelocity[0]), float(projvelocity[1]), float(projvelocity[2])]
+    
+    
+                
+                # if the thread has completed a round, start it again with the most recent data
+                if (threadFin == True):
+                    TrajectoryPlanner = pool.apply_async(plan.trajectory, tuple(state))  # tuple of args for foo
+                    threadFin = False
+    
+                # if the thread is ready, get the planned trajectory and set PIDs
+                if (TrajectoryPlanner.ready()):
+                    threadFin = True
+    
+                    destination = TrajectoryPlanner.get()  # get the return value from your function.
+    
+                    xdes = destination[0]
+                    ydes = destination[1]
+                    #zdes = float(destination[2])
+                    collision = destination[3]
+                    # print("coordinates --> (" + str(xdes) + ", " + str(ydes) + ")")
+                    print("coordinates (" + str(x) + ", " + str(y) + ") --> (" + str(xdes) + ", " + str(ydes) + ")")
                     sys.stdout.flush()
-
-
-            if(output_data == True):
-                # write to file about the actual vechile trajectory and the actual projectile trajectory
-                x_p, y_p, z_p = curCoords[0], curCoords[1], curCoords[2]
-
-                data_out.write(str(x))
-                data_out.write(',')
-                data_out.write(str(y))
-                data_out.write(',')
-                data_out.write(str(z))
-                data_out.write(',')
-                data_out.write(str(x_p))
-                data_out.write(',')
-                data_out.write(str(y_p))
-                data_out.write(',')
-                data_out.write(str(z_p))
-                data_out.write('\n')
-
-            data_out.close()
-
-
-            ####################
-            # Roll, Pitch, Yaw #
-            ####################
-            roll_sp = roll = r_pid.update(x)
-            pitch_sp = pitch = p_pid.update(y)
-            yaw_out = yaw = y_pid.update(((angle - yaw_sp + 180) % 360) - 180)
-
-            #############################
-            # Update vertical PID loops #
-            #############################
-            velocity = v_pid.update(z)
-            velocity = max(min(velocity, 10), -10)  # Limit vertical velocity between -1 and 1 m/sec
-            vv_pid.set_point = velocity
-            dt = (time.time() - prev_t)
-            if (dt == 0):
-                #print("DT is zero!!!")
-                dt = 0.008
-            curr_velocity = (z - prev_z) / dt
-            #curr_acc = (curr_velocity - prev_vz) / dt
-            thrust_sp = vv_pid.update(curr_velocity)
-
-            ##########################
-            # Update previous values #
-            ##########################
-            prev_z = z
-            #prev_vz = curr_velocity
-            prev_t = time.time()
-
-            """ Thrust was being generated as a decimal value instead of as percent in other examples """
-            thrust_sp = max(min(thrust_sp, 1), 0.40)
-
-            ############################################################
-            # rotate global pitch and roll to vehicle coordinate frame #
-            ############################################################
-            #pitch_corr = pitch_sp * math.cos(math.radians(-angle)) - roll_sp * math.sin(math.radians(-angle))
-            #roll_corr = pitch_sp * math.sin(math.radians(-angle)) + roll_sp * math.cos(math.radians(-angle))
-
-            if (yaw_out < -200):
-                yaw_out = -200
-            if (yaw_out > 200):
-                yaw_out = 200
-
-            #########################
-            # send values to client #
-            #########################
-
-            #print(x,y,z)
-            #print "roll: " + str(roll_corr) + " pitch: " + str(pitch_corr) + " thrust: " + str(thrust_sp * 100) + " yaw: " + str(yaw_out)
-
-            #print "X Location:" + str(x) + ", Roll: " + str(roll) #+ ", Roll input: " + str(roll_corr)
-            #print "Y Location:" + str(y) + ", Pitch: " + str(pitch) #+ ", Pitch input: " + str(pitch_corr)
-
-            if (not math.isnan(thrust_sp)):
-                sendToClient(roll,pitch, thrust_sp * 100, yaw_out)
+                    r_pid.set_point_to(xdes)
+                    p_pid.set_point_to(ydes)
+    
+                    if(collision == True):
+    
+                        # output_data=True #start writing to file the trajectories
+    
+                        print("Collision detected --> (" + str(xdes) + ", " + str(ydes) + ")")
+                        sys.stdout.flush()
+    
+    
+                if(output_data == True):
+                    # write to file about the actual vechile trajectory and the actual projectile trajectory
+                    x_p, y_p, z_p = curCoords[0], curCoords[1], curCoords[2]
+    
+                    data_out.write(str(x))
+                    data_out.write(',')
+                    data_out.write(str(y))
+                    data_out.write(',')
+                    data_out.write(str(z))
+                    data_out.write(',')
+                    data_out.write(str(x_p))
+                    data_out.write(',')
+                    data_out.write(str(y_p))
+                    data_out.write(',')
+                    data_out.write(str(z_p))
+                    data_out.write('\n')
+    
+                data_out.close()
+    
+    
+                ####################
+                # Roll, Pitch, Yaw #
+                ####################
+                roll_sp = roll = r_pid.update(x)
+                pitch_sp = pitch = p_pid.update(y)
+                #print "Yaw PID in:"
+                #print ((angle - yaw_sp + 180) % 360) - 180
+                yaw_out = yaw = y_pid.update(0)
+                #yaw_out = yaw = y_pid.update(((angle - yaw_sp + 180) % 360) - 180)
+    
+                #############################
+                # Update vertical PID loops #
+                #############################
+                velocity = v_pid.update(z)
+                velocity = max(min(velocity, 10), -10)  # Limit vertical velocity between -1 and 1 m/sec
+                vv_pid.set_point = velocity
+                dt = (time.time() - prev_t)
+                if (dt == 0):
+                    #print("DT is zero!!!")
+                    dt = 0.008
+                curr_velocity = (z - prev_z) / dt
+                #curr_acc = (curr_velocity - prev_vz) / dt
+                thrust_sp = vv_pid.update(curr_velocity)
+    
+                ##########################
+                # Update previous values #
+                ##########################
+                prev_z = z
+                #prev_vz = curr_velocity
+                prev_t = time.time()
+    
+                """ Thrust was being generated as a decimal value instead of as percent in other examples """
+                thrust_sp = max(min(thrust_sp, 1), 0.40)
+    
+                ############################################################
+                # rotate global pitch and roll to vehicle coordinate frame #
+                ############################################################
+                #pitch_corr = pitch_sp * math.cos(math.radians(-angle)) - roll_sp * math.sin(math.radians(-angle))
+                #roll_corr = pitch_sp * math.sin(math.radians(-angle)) + roll_sp * math.cos(math.radians(-angle))
+    
+                if (yaw_out < -200):
+                    yaw_out = -200
+                if (yaw_out > 200):
+                    yaw_out = 200
+    
+                #########################
+                # send values to client #
+                #########################
+    
+                #print(x,y,z)
+                #print "roll: " + str(roll_corr) + " pitch: " + str(pitch_corr) + " thrust: " + str(thrust_sp * 100) + " yaw: " + str(yaw_out)
+    
+                #print "X Location:" + str(x) + ", Roll: " + str(roll) #+ ", Roll input: " + str(roll_corr)
+                #print "Y Location:" + str(y) + ", Pitch: " + str(pitch) #+ ", Pitch input: " + str(pitch_corr)
+    
+                if (not math.isnan(thrust_sp)):
+                    sendToClient(roll,pitch, thrust_sp * 100, yaw_out)
 
 
         except simplejson.scanner.JSONDecodeError as e:
