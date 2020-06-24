@@ -9,7 +9,7 @@ from vectors import *
 from cost import *
 
 BounceCheck = True
-restitution = 0.85
+restitution = 0.8
 
 def epsilonTarget(x, y, z, target, epsilon):
     if(abs(target[0])-abs(x)<epsilon and abs(target[1])-abs(y)<epsilon and abs(target[2])-abs(z)<epsilon):
@@ -53,10 +53,10 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     # K: Discretization of angle space used in linear trajectory generation 
     # used in the trajectory optimization process. Increasing K results in a marginal, linear
     # increase in run time.
-    K = 5
+    K = 8
 
     # epsilon: distance away from target that we tolerate (0.5)
-    epsilon = 0.1
+    epsilon = 0.5
 
     # vs: Sampling velocity that is analogous to sampling time
     # Product of vs and ts yield the space discretization that structures each linear trajectory.
@@ -81,8 +81,8 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
 
     x_0 = x
     y_0 = y
-    # z_0 = z
-    z_0 = 0.4
+    z_0 = z
+    #z_0 = 0.4
 
     # safety net
     R_n = 1.0e-04
@@ -90,7 +90,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     R_v = 6.0e-02
     R_p = 6.0e-02
     # R_col = 0.2#6* (R_n + R_d + R_v + R_p)
-    R_col = 0.15
+    R_col = 0.25
     collision = False
 
     setAdjust = errorSetSize;
@@ -270,7 +270,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     #for i in range(0,6):
     #    ret.append(pPredict[M-1,i].tolist())        
 
-    # print(time.time() - start)
+    #print(time.time() - start)
 
     return ret
 

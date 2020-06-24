@@ -68,7 +68,7 @@ pitchP, pitchI, pitchD = 13, 0, 10
 
 #rollP, rollI, rollD = 12, .2, 1
 #pitchP, pitchI, pitchD = 12, .2, 1
-yawP, yawI, yawD = .6, 0, 0
+yawP, yawI, yawD = 2, 0, 0
 
 
 
@@ -189,30 +189,39 @@ if __name__ == "__main__":
             
             if(calibrated==0):
                 print "Calibrating"
+                print z
+                sendToClient(0,0, 40, 0)
+                time.sleep(2)
                 if len(calibration_state) == 0:
                     calibration_state = state[0:2]
-                    sendToClient(6,0, 50, 0)
-                    time.sleep(0.4)
+                    sendToClient(0, 6, 50, 0)
+                    time.sleep(1)
                 else:
                     x_cal = state[0] - calibration_state[0]
                     y_cal = state[1] - calibration_state[1]
                     if(x_cal != 0):
-                        angle = math.degrees(math.atan(y_cal/x_cal))
+                        angle = (math.atan(y_cal/x_cal)) + 6.28 -  math.copysign(3.14,y_cal)
                     else:
-                        angle = 180 - math.sign(y_cal)
-                    if(abs(angle)<5):
-                        calibrated = 1;
-                        print "\n\n\n\n\n---Calibrated---\n\n\n\n\n"
-                    else:
-                        calibration_state = []
-                        calibrated = 0
-                        yaw_out = yaw = y_pid.update(((angle - yaw_sp + 180) % 360) - 180)
-                        sendToClient(0,0, 50, yaw_out)
-                        time.sleep(0.4)
+                        angle = 6.28 -  math.copysign(3.14,y_cal)
+                    
+                    if(angle > 3.14):
+                        angle = angle - 6.28
+                    
+                    print "Angle:", angle
+                    sys.stdout.flush()
+#                    if(abs(angle-yaw_sp)<.2):
+                    calibrated = 1;
+                    print "\n\n\n---Calibrated---\n\n\n"
+                    sys.stdout.flush()
+#                    else:
+#                        calibration_state = []
+#                        calibrated = 0
+#                        yaw_out = yaw = y_pid.update(((angle - yaw_sp + 3.14) % 6.28) - 3.14)
+#                        sendToClient(-4,0, 50, yaw_out)
+#                        time.sleep(0.5)
                     
                 
             else:
-                print "Running"
                 # if the specified rigid bodies are in view
                 data_out = open('Trajectory_actual.txt', 'a+')
     
@@ -268,8 +277,8 @@ if __name__ == "__main__":
                     #zdes = float(destination[2])
                     collision = destination[3]
                     # print("coordinates --> (" + str(xdes) + ", " + str(ydes) + ")")
-                    print("coordinates (" + str(x) + ", " + str(y) + ") --> (" + str(xdes) + ", " + str(ydes) + ")")
-                    sys.stdout.flush()
+                    #print("coordinates (" + str(x) + ", " + str(y) + ") --> (" + str(xdes) + ", " + str(ydes) + ")")
+                    #sys.stdout.flush()
                     r_pid.set_point_to(xdes)
                     p_pid.set_point_to(ydes)
     
@@ -285,6 +294,9 @@ if __name__ == "__main__":
                     # write to file about the actual vechile trajectory and the actual projectile trajectory
                     x_p, y_p, z_p = curCoords[0], curCoords[1], curCoords[2]
     
+    
+                    data_out.write(str(time.time()))
+                    data_out.write(',')
                     data_out.write(str(x))
                     data_out.write(',')
                     data_out.write(str(y))
@@ -338,8 +350,8 @@ if __name__ == "__main__":
                 ############################################################
                 # rotate global pitch and roll to vehicle coordinate frame #
                 ############################################################
-                #pitch_corr = pitch_sp * math.cos(math.radians(-angle)) - roll_sp * math.sin(math.radians(-angle))
-                #roll_corr = pitch_sp * math.sin(math.radians(-angle)) + roll_sp * math.cos(math.radians(-angle))
+                pitch_corr = pitch_sp * math.cos(math.radians(-angle)) - roll_sp * math.sin(math.radians(-angle))
+                roll_corr = pitch_sp * math.sin(math.radians(-angle)) + roll_sp * math.cos(math.radians(-angle))
     
                 if (yaw_out < -200):
                     yaw_out = -200
@@ -357,7 +369,8 @@ if __name__ == "__main__":
                 #print "Y Location:" + str(y) + ", Pitch: " + str(pitch) #+ ", Pitch input: " + str(pitch_corr)
     
                 if (not math.isnan(thrust_sp)):
-                    sendToClient(roll,pitch, thrust_sp * 100, yaw_out)
+                    #sendToClient(roll,pitch, thrust_sp * 100, yaw_out)
+                    sendToClient(roll_corr,pitch_corr, thrust_sp * 100, yaw_out)
 
 
         except simplejson.scanner.JSONDecodeError as e:
