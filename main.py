@@ -118,6 +118,7 @@ Trajectory planner thread set up
 """
 
 state = [0,0,0,0,0,0,0,0,0]
+destination = [0,0,0,0]
 
 logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] (%(threadName)-10s) %(messages)s',)
 
@@ -152,7 +153,7 @@ if __name__ == "__main__":
     p_pid.set_point_to(0)
 
     detectedCount = 0
-    output_data = False
+    output_data = True
 
     while True:
 
@@ -209,16 +210,9 @@ if __name__ == "__main__":
                     
                     print "Angle:", angle
                     sys.stdout.flush()
-#                    if(abs(angle-yaw_sp)<.2):
                     calibrated = 1;
                     print "\n\n\n---Calibrated---\n\n\n"
                     sys.stdout.flush()
-#                    else:
-#                        calibration_state = []
-#                        calibrated = 0
-#                        yaw_out = yaw = y_pid.update(((angle - yaw_sp + 3.14) % 6.28) - 3.14)
-#                        sendToClient(-4,0, 50, yaw_out)
-#                        time.sleep(0.5)
                     
                 
             else:
@@ -293,22 +287,9 @@ if __name__ == "__main__":
                 if(output_data == True):
                     # write to file about the actual vechile trajectory and the actual projectile trajectory
                     x_p, y_p, z_p = curCoords[0], curCoords[1], curCoords[2]
-    
-    
-                    data_out.write(str(time.time()))
-                    data_out.write(',')
-                    data_out.write(str(x))
-                    data_out.write(',')
-                    data_out.write(str(y))
-                    data_out.write(',')
-                    data_out.write(str(z))
-                    data_out.write(',')
-                    data_out.write(str(x_p))
-                    data_out.write(',')
-                    data_out.write(str(y_p))
-                    data_out.write(',')
-                    data_out.write(str(z_p))
-                    data_out.write('\n')
+
+                    toFile = str(time.time()) + ',' + str(x)+ ',' + str(y)+ ',' + str(z)+ ',' + str(x_p)+ ',' + str(y_p)+ ',' + str(z_p) + ',' + str(destination[0])+ ',' + str(destination[1])+ ',' + str(destination[3]) + '\n'
+                    data_out.write(toFile)
     
                 data_out.close()
     

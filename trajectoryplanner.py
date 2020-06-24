@@ -3,13 +3,14 @@ import math
 import numpy as np
 import scipy.integrate
 import time
+import sys
 
 # custom libraries
 from vectors import *
 from cost import *
 
 BounceCheck = True
-restitution = 0.8
+restitution = 0.4
 
 def epsilonTarget(x, y, z, target, epsilon):
     if(abs(target[0])-abs(x)<epsilon and abs(target[1])-abs(y)<epsilon and abs(target[2])-abs(z)<epsilon):
@@ -62,8 +63,8 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     # Product of vs and ts yield the space discretization that structures each linear trajectory.
     v_s = 2
     
-    # errorSetSize: Size of possible input error used to create set of possible locations
-    errorSetSize = 0.2;
+    # errorSetSize: Size of possible input error used to create set of possible locations for obstacle
+    errorSetSize = 0.5;
 
     # quad and projectile prediction lists
     #xiPredict = np.asfarray([[0 for i in range(3)] for j in range(N)])
@@ -228,7 +229,8 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
             # 
             #    problem if there is nothing in the safeList
             #
-            # print "---NO SAFE TRAJECTORIES---"
+            print "---NO SAFE TRAJECTORIES---"
+            sys.stdout.flush()
             u_opt = target.tolist()
         else:
             # print "---SAFE TRAJECTORIES---"
@@ -271,6 +273,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     #    ret.append(pPredict[M-1,i].tolist())        
 
     #print(time.time() - start)
+    #sys.stdout.flush()
 
     return ret
 
