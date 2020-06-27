@@ -29,14 +29,12 @@ def sendToClient(roll, pitch, thrust, yaw):
 def resetPIDs():
     r_pid.reset_dt()
     p_pid.reset_dt()
-    y_pid.reset_dt()
     v_pid.reset_dt()
     vv_pid.reset_dt()
 
     vv_pid.Integrator = 0.0
     r_pid.Integrator = 0.0
     p_pid.Integrator = 0.0
-    y_pid.Integrator = 0.0
 
 
 def validVelocity(dist, dt, threshold):
@@ -291,7 +289,7 @@ if __name__ == "__main__":
             #########################
 
             if (not math.isnan(thrust_sp)):
-                sendToClient(roll,pitch, thrust_sp * 100, 0)
+                sendToClient(roll,pitch, thrust_sp * 100, -3.5)
 
         except simplejson.scanner.JSONDecodeError as e:
             print e
