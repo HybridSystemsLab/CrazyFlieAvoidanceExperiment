@@ -216,7 +216,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
                 #print(u_k[j][0:3])
                 # dist_ij = line2line(u_k[j][0:3], u_k[j + 1][0:3], pPredict[j][0:3], pPredict[j + 1][0:3])
                 # if (dist_ij) <= R_col:
-                if (cubeIntersectCube(u_k-[R_col, R_col, R_col], u_k+[R_col, R_col, R_col], pPredictSet[i][0:3], pPredictSet[i][6:9])):
+                if (cubeIntersectCube(u_k-[R_col, R_col, R_col], u_k+[R_col, R_col, R_col], pPredictSet[j][0:3], pPredictSet[j][6:9])):
                     unSafe = True
                     break
 
@@ -236,6 +236,8 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
             for u in safeList:
                 # calculate total cost of trajectory and minimize
                 #objPath = np.concatenate(pPredictSet[:][0:3], pPredictSet[:][6:9])
+                #print pPredictSet[:][0:3], pPredictSet[:][6:9]
+                #Cost_k = costSumObj(u, target, pPredictSet[:][0:3], pPredictSet[:][6:9], N)
                 Cost_k = costSum(u, target, N)
 
                 if (Cost_k < Cost_min):
