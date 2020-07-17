@@ -64,7 +64,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     v_s = 2
     
     # errorSetSize: Size of possible input error used to create set of possible locations for obstacle
-    errorSetSize = 0.5;
+    errorSetSize = 0.25;
 
     # quad and projectile prediction lists
     #xiPredict = np.asfarray([[0 for i in range(3)] for j in range(N)])

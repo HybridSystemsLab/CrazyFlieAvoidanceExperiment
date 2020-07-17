@@ -29,6 +29,7 @@ def sendToClient(roll, pitch, thrust, yaw):
 def resetPIDs():
     r_pid.reset_dt()
     p_pid.reset_dt()
+    y_pid.reset_dt()
     v_pid.reset_dt()
     vv_pid.reset_dt()
 
@@ -75,13 +76,16 @@ client_conn.connect("tcp://127.0.0.1:1212")
 # PID constants
 rollP, rollI, rollD = 13, 0, 10
 pitchP, pitchI, pitchD = 13, 0, 10
+yawP, yawI, yawD = 0.6, 0, 0
 
 # Roll, Pitch and Yaw PID controllers
 r_pid = pid.PID_RP(name="roll", P=rollP, I=rollI, D=rollD, Integrator_max=11, Integrator_min=-11, set_point=0,
                    set_point_max=1.5, set_point_min=-1.5)
 p_pid = pid.PID_RP(name="pitch", P=pitchP, I=pitchI, D=pitchD, Integrator_max=11, Integrator_min=-11, set_point=0,
                    set_point_max=1.3, set_point_min=-1.3)
-
+#y_pid = []
+y_pid = pid.PID_RP(name="yaw", P=yawP, I=yawI, D=yawD, Integrator_max=5, Integrator_min=-5, set_point=0)
+                   
 vertP, vertI, vertD = 0.6, 1.2, 0
 velP, velI, velD = .75, 1.0e-4, 0
 
@@ -122,7 +126,7 @@ logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] (%(threadName)-
 
 pool = ThreadPool(processes=1)
 threadFin = True
-
+startAngle = []
 
 
 if __name__ == "__main__":
@@ -165,15 +169,27 @@ if __name__ == "__main__":
                 L.append('q')
 
             # Get rigid body data from Optitrack (8, 32 b4)
-            frame_data = processor.recv_data(rigid_body_ids=[1], mode=' ')
+            frame_data = processor.recv_data(rigid_body_ids=[1])
             if frame_history.update(frame_data) is None:
                 detectedCount += 1
-
                 continue
             else:
                 detectedCount = 0
-
-
+            
+            #angle = -frame_data[0][4]
+            #if(startAngle == []):
+#                startAngle = angle
+                #y_pid.set_point_to(angle)
+#            dAngle = startAngle - angle
+#            if(dAngle > 200):
+#                dAngle = dAngle - 360
+#            if(dAngle < -200):
+#                dAngle = dAngle + 360
+            
+            #print("%1.4f, %1.4f, %1.4f" % (frame_data[0][3], frame_data[0][4], frame_data[0][5]))
+            #print "dAngle: ", dAngle
+            #print angle
+            #sys.stdout.flush()
 
             lastState = state
             # assign current state values of the Crazyflie and projectile
@@ -182,10 +198,19 @@ if __name__ == "__main__":
             #current possition of Quad and projectile
             x, y, z = state[0], state[1], state[2]
             if(len(frame_data)==1):
-				curCoords=curCoords;
-            else:
+				curCoords=curCoords
+            elif(len(frame_data)==2):
                 curCoords[0], curCoords[1], curCoords[2] = -frame_data[1][0], frame_data[1][2], frame_data[1][1]
-
+            else:
+                #Fiter out marker positions from motive which are close to the vehicle as these are noise
+                noiseRadius = 0.2
+                for markerNum in range(1, len(frame_data)-1):
+                    if(abs(-frame_data[1][0] - x) < noiseRadius and abs(frame_data[1][2] - y) < noiseRadius and abs(frame_data[1][1] -z) < noiseRadius):
+                        continue
+                    else:
+                        curCoords[0], curCoords[1], curCoords[2] = -frame_data[1][0], frame_data[1][2], frame_data[1][1]
+                        break
+                        
             # if the specified rigid bodies are in view
             data_out = open('Trajectory_actual.txt', 'a+')
 
@@ -261,6 +286,7 @@ if __name__ == "__main__":
             ####################
             roll_sp = roll = r_pid.update(x)
             pitch_sp = pitch = p_pid.update(y)
+            #yaw_sp = yaw = p_pid.update(angle)
 
             #############################
             # Update vertical PID loops #
@@ -289,7 +315,7 @@ if __name__ == "__main__":
             #########################
 
             if (not math.isnan(thrust_sp)):
-                sendToClient(roll,pitch, thrust_sp * 100, -3.5)
+                sendToClient(roll,pitch, thrust_sp * 100, 0)
 
         except simplejson.scanner.JSONDecodeError as e:
             print e

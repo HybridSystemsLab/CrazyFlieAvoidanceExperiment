@@ -62,7 +62,7 @@ class OptitrackProcessor(object):
         self.last_time = cur_time
         if type(packet) in [rx.SenderData, rx.ModelDefs, rx.FrameOfData]:
             all_bodies = packet.rigid_bodies  # elem 3 contains info on all rigid bodies
-            markers = packet.other_markers # contains info on all markers
+            markers = packet.other_markers # contains info on all markers not part of rigid body
             output = []
             for body in all_bodies:
                 body = body._asdict()
@@ -76,7 +76,7 @@ class OptitrackProcessor(object):
                         continue
                 else:
                     location, orientation = process_state(body, mode)
-            # time.sleep(.5)
+            # Add locaitons of all markers port part of rigid bodies
             for marker in markers:
 			    output.append(list(marker) + [0,0,0,1] + [delta, True])
             return output
