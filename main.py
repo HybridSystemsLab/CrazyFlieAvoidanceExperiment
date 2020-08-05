@@ -74,8 +74,8 @@ client_conn = context.socket(zmq.PUSH)
 client_conn.connect("tcp://127.0.0.1:1212")
 
 # PID constants
-rollP, rollI, rollD = 13, 0, 10
-pitchP, pitchI, pitchD = 13, 0, 10
+rollP, rollI, rollD = 13, 0, 5
+pitchP, pitchI, pitchD = 13, 0, 5
 yawP, yawI, yawD = 0.6, 0, 0
 
 # Roll, Pitch and Yaw PID controllers
@@ -156,6 +156,7 @@ if __name__ == "__main__":
 
     detectedCount = 0
     output_data = True
+    origin = []
 
     while True:
 
@@ -194,6 +195,14 @@ if __name__ == "__main__":
             lastState = state
             # assign current state values of the Crazyflie and projectile
             state = frame_history.filtered_frame.state
+            
+            # Shift state to account for non zero starting point
+            if(origin == []):
+                origin = [state[0], state[1], 0, 0, 0, 0]
+                print origin
+                sys.stdout.flush()
+            state = state - origin
+                
 
             #current possition of Quad and projectile
             x, y, z = state[0], state[1], state[2]
@@ -203,7 +212,7 @@ if __name__ == "__main__":
                 curCoords[0], curCoords[1], curCoords[2] = -frame_data[1][0], frame_data[1][2], frame_data[1][1]
             else:
                 #Fiter out marker positions from motive which are close to the vehicle as these are noise
-                noiseRadius = 0.2
+                noiseRadius = 0.1
                 for markerNum in range(1, len(frame_data)-1):
                     if(abs(-frame_data[1][0] - x) < noiseRadius and abs(frame_data[1][2] - y) < noiseRadius and abs(frame_data[1][1] -z) < noiseRadius):
                         continue
@@ -308,21 +317,21 @@ if __name__ == "__main__":
             prev_t = time.time()
 
             """ Thrust was being generated as a decimal value instead of as percent in other examples """
-            thrust_sp = max(min(thrust_sp, 1), 0.40)
+            thrust_sp = max(min(thrust_sp, 1), 0.45)
 
             #########################
             # send values to client #
             #########################
 
             if (not math.isnan(thrust_sp)):
-                sendToClient(roll,pitch, thrust_sp * 100, 0)
+                sendToClient(roll,pitch, thrust_sp * 100, -1)
 
         except simplejson.scanner.JSONDecodeError as e:
             print e
 
     # If we kill the program manually we send the copter a low thrust value so it descends gracefully
     for i in range(0, 20):
-        sendToClient(0, 0, 60 - i, 0)
+        sendToClient(0, 0, 50 - i, 0)
         time.sleep(0.15)
     sendToClient(0, 0, 0, 0)
     print "Vehicle Killed"

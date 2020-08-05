@@ -10,7 +10,7 @@ from vectors import *
 from cost import *
 
 BounceCheck = True
-restitution = 0.4
+restitution = 0.65
 
 def epsilonTarget(x, y, z, target, epsilon):
     if(abs(target[0])-abs(x)<epsilon and abs(target[1])-abs(y)<epsilon and abs(target[2])-abs(z)<epsilon):
@@ -43,7 +43,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     start = time.time()
 
     # N: Event horizon of choice.(20)
-    N = 20
+    N = 25
     
     # t_s = Sampling time--step through which time is discretized.
     t_s = 0.05
@@ -57,14 +57,14 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     K = 8
 
     # epsilon: distance away from target that we tolerate (0.5)
-    epsilon = 0.5
+    epsilon = 0.3
 
     # vs: Sampling velocity that is analogous to sampling time
     # Product of vs and ts yield the space discretization that structures each linear trajectory.
     v_s = 2
     
     # errorSetSize: Size of possible input error used to create set of possible locations for obstacle
-    errorSetSize = 0.25;
+    errorSetSize = 0.2;
 
     # quad and projectile prediction lists
     #xiPredict = np.asfarray([[0 for i in range(3)] for j in range(N)])
@@ -91,10 +91,13 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     R_v = 6.0e-02
     R_p = 6.0e-02
     # R_col = 0.2#6* (R_n + R_d + R_v + R_p)
-    R_col = 0.25
+    R_col = 0.2
     collision = False
 
-    setAdjust = errorSetSize;
+    setAdjust = [errorSetSize, errorSetSize, errorSetSize]
+    
+    # Min and max change in horizontal velocities from spin after bounce.
+    spinFactor = [-0.02, 0.02]
     
     # xiPredict: N x 3 matrix containing predicted vehicle coordinates.
     # pPredict: N x 6 matrix into which N projectile state vectors are stored
@@ -106,7 +109,7 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
     xiPredictSet = np.concatenate((np.asfarray(xi_0),np.asfarray(xi_0))) + [-R_col,-R_col,-R_col, R_col, R_col ,R_col]
     #pPredict[0][:] = np.asfarray(p_0)
     # pPredictSet: Set around projectile to account for possible pojectile locations
-    pPredictSet[0][:] = np.concatenate((np.asfarray(p_0),np.asfarray(p_0))) + [-setAdjust,-setAdjust,-setAdjust, 0, 0, 0, setAdjust, setAdjust, setAdjust, 0, 0, 0]
+    pPredictSet[0][:] = np.concatenate((np.asfarray(p_0),np.asfarray(p_0))) + [-setAdjust[0],-setAdjust[1],-setAdjust[2], 0, 0, 0, setAdjust[0], setAdjust[1], setAdjust[2], 0, 0, 0]
 
     # pDE.set_initial_value(p_0, 0)
     pDE.set_initial_value(pPredictSet[0], 0)
@@ -118,13 +121,16 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
         pPredictSet[j][:] = pDE.integrate(pDE.t + t_s)
         if(BounceCheck):
             # print (pPredictSet[j][2]+pPredictSet[j][8])/2
-            if((pPredictSet[j][2]+pPredictSet[j][8])/2 < 0):
-                temp = [pPredictSet[j][2], pPredictSet[j][5], pPredictSet[j][8], pPredictSet[j][11]]
-                pPredictSet[j][5] = temp[1] * -restitution
-                pPredictSet[j][11] = temp[3] * -restitution
-                pPredictSet[j][2] = temp[2] * -restitution
-                pPredictSet[j][8] = temp[0] * -restitution
-                # print "Bounce: (" + str(temp[0]) + ' ' + str(temp[2]) + ' ' + str(temp[1]) + ' ' + str(temp[3]) + ") --> (" + str(pPredictSet[j][2]) + ' ' + str(pPredictSet[j][8])+ ' ' + str(pPredictSet[j][5]) + ' ' + str(pPredictSet[j][11]) + ")"
+            if(pPredictSet[j][2] < 0):
+                pPredictSet[j][2]  = pPredictSet[j][2]  * -restitution # min z pos
+                pPredictSet[j][3]  = pPredictSet[j][3]  + spinFactor[0] # min x vel
+                pPredictSet[j][4]  = pPredictSet[j][4]  + spinFactor[0] # min y vel
+                pPredictSet[j][5]  = pPredictSet[j][5]  * -restitution # min z vel
+                pPredictSet[j][8]  = pPredictSet[j][8]  * -restitution # max z pos
+                pPredictSet[j][9]  = pPredictSet[j][9]  + spinFactor[1] # min x vel
+                pPredictSet[j][10] = pPredictSet[j][10] + spinFactor[1] # min y vel
+                pPredictSet[j][11] = pPredictSet[j][11] * -restitution # max z vel
+                
                 #Update values in pDE
                 pDE.set_initial_value(pPredictSet[j], 0)
     
