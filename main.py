@@ -157,6 +157,8 @@ if __name__ == "__main__":
     detectedCount = 0
     output_data = True
     origin = []
+    
+    computationTime = 0;
 
     while True:
 
@@ -271,6 +273,7 @@ if __name__ == "__main__":
                 xdes = destination[0]
                 ydes = destination[1]
                 collision = destination[3]
+                computationTime = destination[4]
                 r_pid.set_point_to(xdes)
                 p_pid.set_point_to(ydes)
 
@@ -278,13 +281,16 @@ if __name__ == "__main__":
                     # output_data=True #start writing to file the trajectories
                     print("Collision detected --> (" + str(xdes) + ", " + str(ydes) + ")")
                     sys.stdout.flush()
+                    
+                #print("Planner took: " + str(computationTime))
+                #sys.stdout.flush()
 
 
             if(output_data == True):
                 # write to file about the actual vechile trajectory and the actual projectile trajectory
                 x_p, y_p, z_p = curCoords[0], curCoords[1], curCoords[2]
 
-                toFile = str(time.time()) + ',' + str(x)+ ',' + str(y)+ ',' + str(z)+ ',' + str(x_p)+ ',' + str(y_p)+ ',' + str(z_p) + ',' + str(destination[0])+ ',' + str(destination[1])+ ',' + str(destination[3]) + '\n'
+                toFile = str(time.time()) + ',' + str(x)+ ',' + str(y)+ ',' + str(z)+ ',' + str(x_p)+ ',' + str(y_p)+ ',' + str(z_p) + ',' + str(destination[0])+ ',' + str(destination[1])+ ',' + str(destination[3]) + ',' + str(computationTime) + '\n'
                 data_out.write(toFile)
 
             data_out.close()

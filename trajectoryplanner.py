@@ -277,6 +277,8 @@ def trajectory(x, y, z, px, py, pz, pxdot, pydot, pzdot):
 
     #print(time.time() - start)
     #sys.stdout.flush()
+    compTime = time.time() - start
+    ret.append(compTime)
 
     return ret
 
