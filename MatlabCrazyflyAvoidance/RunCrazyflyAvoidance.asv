@@ -1,169 +1,190 @@
 close all
 % clear
-clc
+% clc
 
-global HEQOptions;
-HEQOptions = odeset('AbsTol', 1e-1,'RelTol',1e-1);%, 'InitialStep',1e-3);%,'MaxStep',.1);
+global motionPrims
 
-global gamma lambda sigma_max planTime planStep executeTime worldTimeStep obstacleSize FirstRunEject ConstThrust objColStep prevRef ObjPlot55
-gamma = 9.8;
-lambda = .6;
-sigma_max = 0.2;
-planTime = 0.3;
-planStep = 0.1;
-executeTime = 0.05;
-worldTimeStep = 0.1;
-obstacleSize = 0.05;
-FirstRunEject = 0;
-ConstThrust = 1;
-objColStep = 200;
-prevRef = [];
-ObjPlot55 = 0;
+runCFavoidance();
 
-global Target TargetRad
-Target = [0,0,2];
-TargetRad = 0.3;
+function runCFavoidance()
+    global HEQOptions;
+    HEQOptions = odeset('AbsTol', 1e-1,'RelTol',1e-1);%, 'InitialStep',1e-3);%,'MaxStep',.1);
 
-global mobilityRadius usingPointMassVehicle maxAcc Mass InertialTensor MaxMotorThrust d_xy PlanningThrustMult useMotionPrim
-usingPointMassVehicle = 0;
-mobilityRadius = planTime;
-maxAcc = 23;
-Mass = 0.028 + 0.013; %kg
-InertialTensor = [16.571710, 0.830806, 0.718277; 0.830806, 16.655602, 1.800197; 0.718277, 1.800197, 29.261652] * 10^-6; % 10^-6kg meters^2
-MaxMotorThrust = 0.1597;%newtons % 2.130295*10^-11 *65535^2 + 1.032633*10^-6 *65535 + 5.484560*10^-4
-d_xy = (( 2^0.5)/4)*0.092; %meters
-PlanningThrustMult = 0.9;
-useMotionPrim = 1;
+    global gamma lambda sigma_max planTime planStep executeTime worldTimeStep obstacleSize FirstRunEject ConstThrust objColStep prevRef ObjPlot55
+    gamma = 9.8;
+    lambda = .6;
+    sigma_max = 0.2;
+    planTime = 0.3;
+    planStep = 0.1;
+    executeTime = 0.05;
+    worldTimeStep = 0.1;
+    obstacleSize = 0.05;
+    FirstRunEject = 0;
+    ConstThrust = 1;
+    objColStep = 200;
+    prevRef = [];
+    ObjPlot55 = 0;
 
-%Hybrid controller constants
-global Qdelta alpha K k_V_0 k_z k_p k_v k k_omega k_b1 k_b2 beta k_q
-Qdelta = 0.75; % Qdelta \in (0,1)
-alpha = 0.75; % \in (0,1)
-K = 1;
-k_V_0 = 0.01;
-k_z = 0.3;
-k_p = 3;
-k_v = 6;
-k = 3;
-k_omega = 40;
-k_b1 = 1;
-k_b2 = 1;
-beta = k_v/4; % beta \in (0,k_v)
-k_q = 1;
+    global Target TargetRad
+    Target = [0,0,2];
+    TargetRad = 0.3;
 
-% p_x_a; p_y_a; p_z_a; v_x_a; v_y_a; v_z_a; R_11-R_31; R_12-R_32; R_13-R_33; omega; z; h; qhat
-startq = [0.01; 1; 0; 0]/norm([0.01; 1; 0; 0]);
-startR = doubleCover([0 1 0 0]/norm([0 1 0 0]));
-x_a = [zeros(6,1); reshape(startR,[9,1]); zeros(3,1); zeros(3,1); 1; startq];
-% p_x_o; v_x_o; p_y_o; v_y_o; p_z_o; v_z_o; sigmaMin; sigmaMax
-xi_o_0 = [-.03, 0, 0, 1, 4, 0, -sigma_max, sigma_max];
-xi_o_1 = [.03, 0, 1, -0.5, 2, 0, -sigma_max, sigma_max];
-x_o = [mat2cell([0,0,xi_o_0], 1, 10);mat2cell([0,0,xi_o_1], 1, 10)];
-xi_p = 0;
+    global mobilityRadius usingPointMassVehicle maxAcc Mass InertialTensor MaxMotorThrust d_xy PlanningThrustMult useMotionPrim
+    usingPointMassVehicle = 0;
+    mobilityRadius = planTime;
+    maxAcc = 23;
+    Mass = 0.028 + 0.013; %kg
+    InertialTensor = [16.571710, 0.830806, 0.718277; 0.830806, 16.655602, 1.800197; 0.718277, 1.800197, 29.261652] * 10^-6; % 10^-6kg meters^2
+    MaxMotorThrust = 0.1597;%newtons % 2.130295*10^-11 *65535^2 + 1.032633*10^-6 *65535 + 5.484560*10^-4
+    d_xy = (( 2^0.5)/4)*0.092; %meters
+    PlanningThrustMult = 0.9;
+    useMotionPrim = 1;
 
-t_a = 0;
-j_a = 0;
-r_log = zeros(1,31);
+    %Hybrid controller constants
+    global Qdelta alpha K k_V_0 k_z k_p k_v k k_omega k_b1 k_b2 beta k_q
+    Qdelta = 0.75; % Qdelta \in (0,1)
+    alpha = 0.75; % \in (0,1)
+    K = 1;
+    k_V_0 = 0.01;
+    k_z = 0.3;
+    k_p = 3;
+    k_v = 6;
+    k = 3;
+    k_omega = 40;
+    k_b1 = 1;
+    k_b2 = 1;
+    beta = k_v/4; % beta \in (0,k_v)
+    k_q = 1;
+    
+    global spherePts spx spy spz
+    spherePts = 5;
+    [spx, spy, spz] = sphere(spherePts);
+    spx = obstacleSize*reshape(spx(:,1:spherePts),[],1);
+    spy = obstacleSize*reshape(spy(:,1:spherePts),[],1);
+    spz = obstacleSize*reshape(spz(:,1:spherePts),[],1);
 
-% %Set up threads
-% p = gcp('nocreate');
-% if isempty(p)
-%     p = parpool(1);
-% end
+    % p_x_a; p_y_a; p_z_a; v_x_a; v_y_a; v_z_a; R_11-R_31; R_12-R_32; R_13-R_33; omega; z; h; qhat
+    startq = [0.01; 1; 0; 0]/norm([0.01; 1; 0; 0]);
+    startR = doubleCover([0 1 0 0]/norm([0 1 0 0]));
+    x_a = [zeros(6,1); reshape(startR,[9,1]); zeros(3,1); zeros(3,1); 1; startq];
+    % p_x_o; v_x_o; p_y_o; v_y_o; p_z_o; v_z_o; sigmaMin; sigmaMax
+    % xi_o_0 = [-.03, 0, 0, 1, 4, 0, -sigma_max, sigma_max];
+    % xi_o_1 = [.03, 0, 1, -0.5, 2, 0, -sigma_max, sigma_max];
+    % x_o = [mat2cell([0,0,xi_o_0], 1, 10);mat2cell([0,0,xi_o_1], 1, 10)];
+    xi_p = 0;
 
-%Set up optitrak
-dllPath = fullfile('c:','Users','yzeleke','Desktop','HSL_exp','NatNetSDK','lib','x64','NatNetML.dll');
-assemblyInfo = NET.addAssembly(dllPath);
-Client = NatNetML.NatNetClientML(0);
-HostIP = char('128.114.56.19');
-Client.Initialize(HostIP, HostIP);
-cleanupObj = onCleanup(@()Client.Uninitialize());
+    t_a = 0;
+    j_a = 0;
+    r_log = zeros(1,31);
 
-%Connect to cfclient
-addpath(genpath('C:\Users\adrames\Desktop\Aerial Vehicle\MatlabZMQTest\matlab-zmq\lib'))
-addpath('C:\Users\adrames\Desktop\Aerial Vehicle\MatlabZMQTest\libzmq')
-context = zmq.core.ctx_new();
-socket  = zmq.core.socket(context, 'ZMQ_PUSH');
-address = 'tcp://127.0.0.1:1212';
-zmq.core.connect(socket, address);
+    %Set up optitrak
+    dllPath = fullfile('c:','Users','yzeleke','Desktop','HSL_exp','NatNetSDK','lib','x64','NatNetML.dll');
+    assemblyInfo = NET.addAssembly(dllPath);
+    Client = NatNetML.NatNetClientML(0);
+    HostIP = char('128.114.56.19');
+    Client.Initialize(HostIP, HostIP);
+    cleanupObj = onCleanup(@()Client.Uninitialize());
 
-%Load motion primatives
-if(~exist('motionPrims', 'var'))
-    global motionPrims
-    disp('Loading motionPrims from file')
-%     motionPrims = load('D:\adrames\motionData_omegaMax5_numStep11_numVals7\motionData.mat');
-    motionPrims = load('D:\adrames\motionData_omegaMax5_numStep6_numVals5\motionData.mat');
-    disp('Done loading motionPrims from file')
-end
+    %Connect to cfclient
+    addpath(genpath('C:\Users\adrames\Desktop\Aerial Vehicle\MatlabZMQTest\matlab-zmq\lib'))
+    addpath('C:\Users\adrames\Desktop\Aerial Vehicle\MatlabZMQTest\libzmq')
+    context = zmq.core.ctx_new();
+    socket  = zmq.core.socket(context, 'ZMQ_PUSH');
+    address = 'tcp://127.0.0.1:1212';
+    zmq.core.connect(socket, address);
 
-%Run planner and update world
-global xi_a 
-xi_a = [];
-hvc_tocs = zeros(30,1);
-T = 50;
-M = [0;0;0];
-r = [0,0, 0, .8,zeros(1,9),reshape(eye(3),[1,9]),zeros(1,3); 1000000,0, 0, .8,zeros(1,9),reshape(eye(3),[1,9]),zeros(1,3)];
-for i=1:1
-%     hvc = tic;
-    [t, p_a,v_a,R_a,omega_a] = getQuadState(Client, 1);
-    x_a = [p_a;v_a;reshape(R_a, [9,1]); omega_a; x_a(19:end)]
-    %Run planner
-    if(isempty(xi_a))
-        xi_a = x_a;
-%         r = [t,p_a',zeros(1,9),reshape(eye(3),[1,9]),zeros(1,3);t+2,p_a'+[.0, .0, .3],zeros(1,9),reshape(eye(3),[1,9]),zeros(1,3)];
+    %Load motion primatives
+    if(~exist('motionPrims', 'var'))
+        global motionPrims
     end
-%     if(i == 1)
-        plantic = tic;
-        r = setBasedPlanner(x_a, x_o, @cost);
-        toc(plantic)
-         pause
-        disp('Done ref gen')
-% %         parfeval(@setBasedPlanner,0,x_a(end,:), x_o, @cost);
-%     else
-% %         x_a(end,:)
-%         rAsStateTemp = interp1(prevRef(:,1),prevRef(:,2:end), executeTime);
-%         rAsState = [rAsStateTemp(1:6), rAsStateTemp(16:27)];
-%         r = setBasedPlanner(rAsState,x_o,@cost);
-%     end
-%     r_log = [r_log;r_log(end,1)+r(:,1), r(:,2:end)];
-    
-    [Tnew, Mnew] = hybridVehicleController(r,x_a,t);
-    if(any(0 ~= [Tnew;Mnew]))
-        T = Tnew;
-        M = Mnew;
+    if(isempty(motionPrims))
+        disp('Loading motionPrims from file')
+    %     motionPrims = load('D:\adrames\motionData_omegaMax5_numStep11_numVals7\motionData.mat');
+        motionPrims = load('D:\adrames\motionData_omegaMax5_numStep11_numVals5\motionData.mat');
+        disp('Done loading motionPrims from file')
     end
-    
-%     [t_a,j_a,x_a] = updateVehicle(r,t_a,j_a,x_a);
-    
-    %Update obstacles
-%     x_o = updateObjs(x_o);
-    
-%     plotResults(t_a, x_a, x_o, r_log(2:end,:));
-%     if(norm(r(end,5:7))>1)
-%         ConstThrust = 0;
-%     else
-%         ConstThrust = 1;
-%     end
-%     dist = max(norm(x_a(end,3:5)-Target) - TargetRad, 0);
-%     if(dist<0 && norm(x_a(end,6:8))<0.2)
-%         break
-%     end
 
-    sendCFdata(socket,T,M,x_a(7:15),x_a(16:18))
-%     hvc_tocs(i) = toc(hvc);
+    %Run planner and update world
+    global xi_a 
+    xi_a = [];
+    T = 50;
+    M = [0;0;0];
+    r = [0,0,0,.8,zeros(1,12),reshape(eye(3),[1,9]),zeros(1,3); 1000000,0, 0, .8,zeros(1,12),reshape(eye(3),[1,9]),zeros(1,3)];
+    f = [];
+    for i=1:2
+        [t, p_a,v_a,R_a,omega_a, x_o] = getWorldState(Client, 1);
+        x_a = [p_a;v_a;reshape(R_a, [9,1]); omega_a; x_a(19:end)];
+        %Run planner
+        if(isempty(xi_a))
+            xi_a = x_a;
+    %         r = [t,p_a',zeros(1,9),reshape(eye(3),[1,9]),zeros(1,3);t+2,p_a'+[.0, .0, .3],zeros(1,9),reshape(eye(3),[1,9]),zeros(1,3)];
+        end
+    %     if(i == 1)
+    %         plantic = tic;
+    %         r = setBasedPlanner(x_a, x_o, @cost);
+    %         toc(plantic)
+    %         disp('Done ref gen')
+        if(i == 1)
+%             f = parfeval(@setBasedPlanner,1,x_a, x_o, @cost);
+%             r = [0,p_a', v_a', zeros(1,9), reshape(R_a, [1,9]), omega_a'; 1000000, p_a', v_a', zeros(1,9), reshape(R_a, [1,9]), omega_a'];
+            r = setBasedPlanner(x_a, x_o, @cost);
+        else
+            if(mod(i,4) == 0)
+                rAsStateTemp = interp1(r(:,1),r(:,2:end), executeTime);
+                rAsState = [rAsStateTemp(1:6), rAsStateTemp(16:27)]';
+                r = setBasedPlanner(rAsState, x_o, @cost);
+            end
+        end
+    %     else
+    % %         x_a(end,:)
+    %         rAsStateTemp = interp1(prevRef(:,1),prevRef(:,2:end), executeTime);
+    %         rAsState = [rAsStateTemp(1:6), rAsStateTemp(16:27)];
+    %         r = setBasedPlanner(rAsState,x_o,@cost);
+    %     end
+    %     r_log = [r_log;r_log(end,1)+r(:,1), r(:,2:end)];
+
+        [Tnew, Mnew] = hybridVehicleController(r,x_a,t);
+        if(any(0 ~= [Tnew;Mnew]))
+            T = Tnew;
+            M = Mnew;
+        end
+
+    %     [t_a,j_a,x_a] = updateVehicle(r,t_a,j_a,x_a);
+
+        %Update obstacles
+    %     x_o = updateObjs(x_o);
+
+    %     plotResults(t_a, x_a, x_o, r_log(2:end,:));
+    %     if(norm(r(end,5:7))>1)
+    %         ConstThrust = 0;
+    %     else
+    %         ConstThrust = 1;
+    %     end
+    %     dist = max(norm(x_a(end,3:5)-Target) - TargetRad, 0);
+    %     if(dist<0 && norm(x_a(end,6:8))<0.2)
+    %         break
+    %     end
+
+        sendCFdata(socket,T,M,x_a(7:15),x_a(16:18));
+    end
+    str = ['{"version":1, "client_name": "N/A", "ctrl": {"thrust": ',num2str(0.0),', "yaw": ',num2str(0.0),', "roll": ',num2str(0.0),', "pitch": ',num2str(0.0),'}}'];
+    zmq.core.send(socket, uint8(str));
+
+%     xi_a
+%     x_a
+%     x_a(1:3) - xi_a(1:3)
+%     r(2,2:4)' - x_a(1:3)
 end
-str = ['{"version":1, "client_name": "N/A", "ctrl": {"thrust": ',num2str(0.0),', "yaw": ',num2str(0.0),', "roll": ',num2str(0.0),', "pitch": ',num2str(0.0),'}}'];
-zmq.core.send(socket, uint8(str));
-
-xi_a
-x_a
-x_a(1:3) - xi_a(1:3)
-r(2,2:4)' - x_a(1:3)
 
 % meanT = mean(hvc_tocs)
 % [maxT, maxID] = max(hvc_tocs)
 % histogram(hvc_tocs)
 % [maxT, b] = max(hvc_tocs(2:end))
+
+
+function backgroundController()
+        
+end
 
 function newU = updateObjs(U)
     global executeTime

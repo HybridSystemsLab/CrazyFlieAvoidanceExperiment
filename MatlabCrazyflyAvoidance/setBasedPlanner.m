@@ -3,25 +3,30 @@ function out = setBasedPlanner(x_a, x_o, costFun)
     %Generate unsafe sets for obstacles
     xSpin = [sigma_max, sigma_max, -sigma_max, -sigma_max];
     ySpin = [sigma_max, -sigma_max, sigma_max, -sigma_max];
-    numObj = size(x_o)
-    U = cell(numObj(1),numObj(2)*4)
+    numObj = size(x_o);
+    U = cell(numObj(1),numObj(2)*4);
     for i=1:numObj(1)
         for j = 1:4
             x_o_mat = cell2mat(x_o(i));
             x_o_mat_size = size(x_o_mat);
             x_o_mat(:,9:10) = repmat([xSpin(j), ySpin(j)], [x_o_mat_size(1), 1]);
             [bb_t, bb_j, bb_x] = bouncingBallModel(x_o_mat(end,end-7:end), planTime);
+            if(bb_j(end) == 0 && j == 1)
+                bballOut = [bb_t, bb_j, bb_x];
+                [row, col] = size(bballOut);
+                U(i,1) = mat2cell(bballOut,row,col);
+                for k = 2:4
+                    U(i,k) = U(i,1);
+                end
+                break
+            end
             bballOut = [bb_t, bb_j, bb_x];
             [row, col] = size(bballOut);
             U(i,j) = mat2cell(bballOut,row,col);
         end
     end
-    
     %Generate safe reachable map
-    genTime = tic;
     [phi,r] = genSafeTraj(x_a,U);
-    toc(genTime)
-    
     global plot77
     if(plot77)
         f77 = figure(77);

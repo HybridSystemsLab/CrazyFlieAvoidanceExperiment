@@ -1,4 +1,4 @@
-function [t, pos, vel, outR, omega] = getQuadState(Client, obj_ID)
+function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
     debug = 0;
     if(debug == 1)
     %Set up optitrak
@@ -15,10 +15,10 @@ function [t, pos, vel, outR, omega] = getQuadState(Client, obj_ID)
 
     persistent lastPos lastRot lastT
     frameOfData = Client.GetLastFrameOfData();
-    obj_pose = frameOfData.RigidBodies(obj_ID);
+    vehicle_pose = frameOfData.RigidBodies(obj_ID);
     t = frameOfData.fTimestamp;
-    pos = R*[obj_pose.x;obj_pose.y;obj_pose.z];
-    R = R*doubleCover([obj_pose.qw; obj_pose.qx; obj_pose.qy; obj_pose.qz]);
+    pos = R*[vehicle_pose.x;vehicle_pose.y;vehicle_pose.z];
+    R = R*doubleCover([vehicle_pose.qw; vehicle_pose.qx; vehicle_pose.qy; vehicle_pose.qz]);
     if isempty(lastPos)
         lastPos = pos;
     end
@@ -35,10 +35,41 @@ function [t, pos, vel, outR, omega] = getQuadState(Client, obj_ID)
     end
     omega = calcOmega(R, lastRot, t-lastT);
     outR = R*[1 0 0; 0 1 0; 0 0 1]; % need to flip axis to match controller axis definitions
-%     t, pos, vel, outR, omega
-    % p_x_a; p_y_a; p_z_a; v_x_a; v_y_a; v_z_a; R_11-R_31; R_12-R_32; R_13-R_33; omega; z; h; qhat
     
     
+    
+    % Identify and report on obstacles
+    firstObjPos = 0;
+    global sigma_max
+    persistent lastObjPos lastObjNum
+    if isempty(lastObjPos)
+        firstObjPos = 1;
+    end
+    
+    objPos = zeros(3,frameOfData.nOtherMarkers);
+    
+    objState = {};
+    for i = 1:frameOfData.nOtherMarkers
+        obj = frameOfData.OtherMarkers(i);
+        objPos(:,i) = R*[obj.x;obj.y;obj.z];
+        if(firstObjPos)
+            lastObjPos(:,i) = objPos(:,i);
+        else
+            if(lastObjNum < double(frameOfData.nOtherMarkers))
+                for j = lastObjNum:double(frameOfData.nOtherMarkers)
+                    lastObjPos(:,j) = objPos(:,i);
+                end
+            end
+        end
+        if(t - lastT ~= 0)
+            objVel(:,i) = (objPos(:,i) - lastObjPos(:,i))/(t - lastT);
+        else
+            objVel(:,i) = [0;0;0];
+        end
+        objState(:,i) = mat2cell([0,0,objPos(1,i),objVel(1,i),objPos(2,i),objVel(2,i),objPos(3,i),objVel(3,i), -sigma_max, sigma_max], 1, 10);
+    end
+    lastObjPos = objPos;
+    lastObjNum = double(frameOfData.nOtherMarkers);
 %     if(debug == 1)
 %         Client.Uninitialize();
 %     end

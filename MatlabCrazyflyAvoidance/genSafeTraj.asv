@@ -1,5 +1,5 @@
 function [phis,rs] = genSafeTraj(x_a, U)
-    global usingPointMassVehicle obstacleSize objColStep ObjPlot55
+    global usingPointMassVehicle objColStep ObjPlot55 spx spy spz spherePts
     
     if(ObjPlot55)
         f56 = figure(56);
@@ -7,11 +7,7 @@ function [phis,rs] = genSafeTraj(x_a, U)
     end
     
     Mset = [];
-    spherePts = 5;
-    [spx,spy,spz] = sphere(spherePts);
-    spx = obstacleSize*reshape(spx(:,1:spherePts),[],1);
-    spy = obstacleSize*reshape(spy(:,1:spherePts),[],1);
-    spz = obstacleSize*reshape(spz(:,1:spherePts),[],1);
+%     spPoints = sphere(spherePts);
     global useMotionPrim
     if(useMotionPrim)
         [Mset,all_rs] = motionPrimMobility(x_a);
@@ -30,7 +26,7 @@ function [phis,rs] = genSafeTraj(x_a, U)
 %     phis = {};
 %     rs = {};
     safeVals = [];
-    tess = cell(numTraj(1),numObj(1));
+    tess = cell(numTraj(1),numObj(1),2);
     xosCell = cell(numObj(1),1);
     for i = 1:numTraj(1)
         unsafeFlag = 0;
@@ -83,14 +79,14 @@ function [phis,rs] = genSafeTraj(x_a, U)
                 % Check if any trajectory point is in hull
 %                     a = tic;
                     tempTess = convhulln(hullPts);
-                    temp
                     [r,c] = size(tempTess);
-                    tess(j,t) = [hullPts, mat2cell(tempTess,r,c)];
+                    [rH,cH] = size(hullPts);
+                    tess(j,t,:) = [mat2cell(hullPts,rH,cH), mat2cell(tempTess,r,c)];
 %                     cell2mat(tess(j,t));
 %                     toc(a)
                 end
 %                 ptstic = tic;
-                hullTess = cell2mat(tess(j,t));
+                hullTess = tess(j,t,:);
                 ptsInHull = inhull(traj(:,3:5),hullTess{1}, hullTess{2});
 %                 ptstocs(i,j,t) = toc(ptstic);
                 if(sum(ptsInHull) > 0)
@@ -310,7 +306,11 @@ end
 
 function [Mset,all_rs] = motionPrimMobility(x_a)
     global motionPrims executeTime
-    entryNum = dsearchn(motionPrims.motionPoints', x_a(7:18)');
+    
+    size(motionPrims.motionPoints)
+    
+    size(x_a(7:18)')
+    entryNum = dsearchn(motionPrims.motionPoints', x_a(7:18));
     tempCell = motionPrims.motionPrimatives(entryNum);
     [row col] = size(tempCell{1});
     all_rs = cell(row, 1);

@@ -1,5 +1,5 @@
 function [phis,rs] = genSafeTraj(x_a, U)
-    global usingPointMassVehicle obstacleSize objColStep ObjPlot55
+    global usingPointMassVehicle objColStep ObjPlot55 spx spy spz spherePts
     
     if(ObjPlot55)
         f56 = figure(56);
@@ -7,11 +7,7 @@ function [phis,rs] = genSafeTraj(x_a, U)
     end
     
     Mset = [];
-    spherePts = 5;
-    [spx,spy,spz] = sphere(spherePts);
-    spx = obstacleSize*reshape(spx(:,1:spherePts),[],1);
-    spy = obstacleSize*reshape(spy(:,1:spherePts),[],1);
-    spz = obstacleSize*reshape(spz(:,1:spherePts),[],1);
+%     spPoints = sphere(spherePts);
     global useMotionPrim
     if(useMotionPrim)
         [Mset,all_rs] = motionPrimMobility(x_a);
@@ -310,6 +306,7 @@ end
 
 function [Mset,all_rs] = motionPrimMobility(x_a)
     global motionPrims executeTime
+
     entryNum = dsearchn(motionPrims.motionPoints', x_a(7:18)');
     tempCell = motionPrims.motionPrimatives(entryNum);
     [row col] = size(tempCell{1});
