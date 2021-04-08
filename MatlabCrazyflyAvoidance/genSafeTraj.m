@@ -1,5 +1,5 @@
 function [phis,rs] = genSafeTraj(x_a, U)
-    global usingPointMassVehicle objColStep ObjPlot55 spx spy spz spherePts
+    global usingPointMassVehicle objColStep ObjPlot55 spx spy spz spherePts 
     
     if(ObjPlot55)
         f56 = figure(56);
@@ -8,7 +8,7 @@ function [phis,rs] = genSafeTraj(x_a, U)
     
     Mset = [];
 %     spPoints = sphere(spherePts);
-    global useMotionPrim
+    global useMotionPrim executeTime
     if(useMotionPrim)
         [Mset,all_rs] = motionPrimMobility(x_a);
     else
@@ -30,7 +30,11 @@ function [phis,rs] = genSafeTraj(x_a, U)
     xosCell = cell(numObj(1),1);
     for i = 1:numTraj(1)
         unsafeFlag = 0;
-        traj = cell2mat(Mset(i));
+        if(useMotionPrim)
+            traj = cell2mat(Mset(i)) + [0; 0; x_a(1:3) + x_a(4:6)*executeTime; x_a(4:6); zeros(12,1)]';
+        else
+            traj = cell2mat(Mset(i));
+        end
         for j = 1:numObj(1)
             xos = [];
             if(i == 1)
@@ -309,16 +313,19 @@ function [Mset,all_rs] = motionPrimMobility(x_a)
 
     entryNum = dsearchn(motionPrims.motionPoints', x_a(7:18)');
     tempCell = motionPrims.motionPrimatives(entryNum);
-    [row col] = size(tempCell{1});
-    all_rs = cell(row, 1);
-    Mset = cell(row, 1);
+    Mset = tempCell{1}(:,1);
+    all_rs = tempCell{1}(:,2);
+%     [row col] = size(tempCell{1});
+%     all_rs = cell(row, 1);
+%     Mset = cell(row, 1);
     % Need to add acceleration compensation
-    for i = 1:row
-        tempMset = cell2mat(tempCell{1}(i,1));
-        [r,c] = size(tempMset);
-        Mset(i) = mat2cell(tempMset + [0; 0; x_a(1:3) + x_a(4:6)*executeTime; x_a(4:6); zeros(12,1)]', r,c);
-        tempRs = cell2mat(tempCell{1}(i,2));
-        [r,c] = size(tempRs);
-        all_rs(i) = mat2cell(tempRs + [0; x_a(1:3) + executeTime*x_a(4:6); x_a(4:6); zeros(24,1)]', r,c);
-    end
+%     for i = 1:row
+%         tempMset = cell2mat(tempCell{1}(i,1));
+%         [r,c] = size(tempMset);
+%         Mset(i) = mat2cell(tempMset + [0; 0; x_a(1:3) + x_a(4:6)*executeTime; x_a(4:6); zeros(12,1)]', r,c);
+%         tempRs = cell2mat(tempCell{1}(i,2));
+%         [r,c] = size(tempRs);
+%         all_rs(i) = mat2cell(tempRs + [0; x_a(1:3) + executeTime*x_a(4:6); x_a(4:6); zeros(24,1)]', r,c);
+%     end
+%     all_rs
 end

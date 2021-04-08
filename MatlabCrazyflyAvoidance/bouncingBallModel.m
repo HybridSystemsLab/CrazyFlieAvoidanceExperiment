@@ -1,8 +1,28 @@
-function [t,j,x] = bouncingBallModel(x0, simTime)
-    global HEQOptions
-    TSPAN = [0, simTime];
-    JSPAN = [0, max(10,2*simTime)]; % allow two bounces per second
-    [t,j,x] = HyEQsolver(@fobj,@gobj,@Cobj,@Dobj,x0,TSPAN,JSPAN,1,HEQOptions);
+function [tout, jout, xout] = bouncingBallModel(x0, simTime)
+%     global HEQOptions
+%     TSPAN = [0, simTime];
+%     JSPAN = [0, max(10,2*simTime)]; % allow two bounces per second
+%     [tout,jout,xout] = HyEQsolver(@fobj,@gobj,@Cobj,@Dobj,x0,TSPAN,JSPAN,1,HEQOptions);
+    timeStep = 0.01;
+    x = x0;
+    t = 0;
+    j = 0;
+    tjx = zeros(simTime/timeStep +1, 10);
+    tjx(1,:) = [t,j,x0];
+    for i = 2:floor(simTime/timeStep)+1
+        if(Dobj(x'))
+            x = gobj(x')';
+            j = j+1;
+            tjx(i,:) = [t,j,x];
+        elseif(Cobj(x))
+            x = fobj(x)'*timeStep + x;
+            t = t+timeStep;
+            tjx(i,:) = [t,j,x];
+        end
+    end
+    tout = tjx(:,1);
+    jout = tjx(:,2);
+    xout = tjx(:,3:end);
 end
 
 function xdot = fobj(x)

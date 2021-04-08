@@ -1,5 +1,5 @@
 function out = setBasedPlanner(x_a, x_o, costFun)
-    global planTime sigma_max
+    global planTime sigma_max executeTime useMotionPrim
     %Generate unsafe sets for obstacles
     xSpin = [sigma_max, sigma_max, -sigma_max, -sigma_max];
     ySpin = [sigma_max, -sigma_max, sigma_max, -sigma_max];
@@ -10,6 +10,8 @@ function out = setBasedPlanner(x_a, x_o, costFun)
             x_o_mat = cell2mat(x_o(i));
             x_o_mat_size = size(x_o_mat);
             x_o_mat(:,9:10) = repmat([xSpin(j), ySpin(j)], [x_o_mat_size(1), 1]);
+%             disp('REPLACE HEQ SOLVER IN BBALL MODEL')
+%             error('0')
             [bb_t, bb_j, bb_x] = bouncingBallModel(x_o_mat(end,end-7:end), planTime);
             if(bb_j(end) == 0 && j == 1)
                 bballOut = [bb_t, bb_j, bb_x];
@@ -43,8 +45,6 @@ function out = setBasedPlanner(x_a, x_o, costFun)
         daspect([1 1 1])
     end
     
-%     disp("Gened Trajs")
-    
     %Find "optimal" trajectory
     [~,numTraj] = size(phi);
     if(numTraj == 0)
@@ -63,7 +63,11 @@ function out = setBasedPlanner(x_a, x_o, costFun)
     end
 %     out = cell2mat(phi(closestTraj(1)));
     
-    out = cell2mat(r(closestTraj(1)));
+    if(useMotionPrim)
+        out = cell2mat(r(closestTraj(1))) + [0; x_a(1:3) + executeTime*x_a(4:6); x_a(4:6); zeros(24,1)]';
+    else
+        out = cell2mat(r(closestTraj(1)));
+    end
     global plot88
     if(plot88)
         figure(88);

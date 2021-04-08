@@ -11,14 +11,15 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
         obj_ID = 1;
     end
     
-    R = [-1, 0, 0; 0 0 1; 0 1 0];
+    Rpos = [-1, 0, 0; 0 0 1; 0 1 0];
+    Rq = [1, 0, 0; 0 -1 0; 0 0 -1];
 
     persistent lastPos lastRot lastT
     frameOfData = Client.GetLastFrameOfData();
     vehicle_pose = frameOfData.RigidBodies(obj_ID);
     t = frameOfData.fTimestamp;
-    pos = R*[vehicle_pose.x;vehicle_pose.y;vehicle_pose.z];
-    R = R*doubleCover([vehicle_pose.qw; vehicle_pose.qx; vehicle_pose.qy; vehicle_pose.qz]);
+    pos = Rpos*[vehicle_pose.x;vehicle_pose.y;vehicle_pose.z];
+    R = Rq*doubleCover([vehicle_pose.qw; vehicle_pose.qx; vehicle_pose.qy; vehicle_pose.qz]);
     if isempty(lastPos)
         lastPos = pos;
     end
@@ -46,30 +47,38 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
         firstObjPos = 1;
     end
     
-    objPos = zeros(3,frameOfData.nOtherMarkers);
+%     objPos = zeros(3,frameOfData.nOtherMarkers);
     
     objState = {};
+    nskip = 0;
+    objPos = [];
     for i = 1:frameOfData.nOtherMarkers
         obj = frameOfData.OtherMarkers(i);
-        objPos(:,i) = R*[obj.x;obj.y;obj.z];
+        tempPos = Rpos*[obj.x;obj.y;obj.z];
+        if(norm(tempPos - pos) < 0.1)
+            nskip = nskip+1;
+            continue
+        end
+        obji = i-nskip;
+        objPos(:,obji) = tempPos;
         if(firstObjPos)
-            lastObjPos(:,i) = objPos(:,i);
+            lastObjPos(:,obji) = objPos(:,obji);
         else
             if(lastObjNum < double(frameOfData.nOtherMarkers))
                 for j = lastObjNum:double(frameOfData.nOtherMarkers)
-                    lastObjPos(:,j) = objPos(:,i);
+                    lastObjPos(:,j) = objPos(:,obji);
                 end
             end
         end
         if(t - lastT ~= 0)
-            objVel(:,i) = (objPos(:,i) - lastObjPos(:,i))/(t - lastT);
+            objVel(:,obji) = (objPos(:,obji) - lastObjPos(:,obji))/(t - lastT);
         else
-            objVel(:,i) = [0;0;0];
+            objVel(:,obji) = [0;0;0];
         end
-        objState(:,i) = mat2cell([0,0,objPos(1,i),objVel(1,i),objPos(2,i),objVel(2,i),objPos(3,i),objVel(3,i), -sigma_max, sigma_max], 1, 10);
+        objState(:,obji) = mat2cell([0,0,objPos(1,obji),objVel(1,obji),objPos(2,obji),objVel(2,obji),objPos(3,obji),objVel(3,obji), -sigma_max, sigma_max], 1, 10);
     end
     lastObjPos = objPos;
-    lastObjNum = double(frameOfData.nOtherMarkers);
+    [~,lastObjNum] = size(objPos);
 %     if(debug == 1)
 %         Client.Uninitialize();
 %     end

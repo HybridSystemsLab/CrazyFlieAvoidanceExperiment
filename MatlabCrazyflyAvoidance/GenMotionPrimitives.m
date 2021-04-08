@@ -2,22 +2,26 @@ close all
 clear
 clc
 global Mass InertialTensor MaxMotorThrust d_xy PlanningThrustMult ConstThrust planTime makePlot
-planTime = 1;
+planTime = 0.5;
 Mass = 0.028; %kg
 InertialTensor = [16.571710, 0.830806, 0.718277; 0.830806, 16.655602, 1.800197; 0.718277, 1.800197, 29.261652] * 10^-6; % 10^-6kg meters^2
 MaxMotorThrust = 0.1597;%newtons % 2.130295*10^-11 *65535^2 + 1.032633*10^-6 *65535 + 5.484560*10^-4
 d_xy = (( 2^0.5)/4)*0.092; %meters
 PlanningThrustMult = 0.9;
 ConstThrust = 0;
-makePlot = 0
+makePlot = 1;
 
-global numStep vMax omegaMax motionPoints motionPrimatives
-motionPrimatives = {}
-motionPoints = []
-numStep = 9; % + 1
+global numStep vMax omegaMax motionPoints motionPrimatives startRot
+motionPrimatives = {};
+motionPoints = [];
+numStep = 4; % + 1
 vMax = 1;
-omegaMax = 5;
+omegaMax = 0;
+startRot = [1 0 0; 0 -1 0; 0 0 -1];
+
 omegaLoop()
+% hybridModelMobility([zeros(6,1); reshape(startRot, [9,1]); zeros(3,1)])
+
 
 function vLoop(R,omega)
     global motionPoints motionPrimatives
@@ -39,7 +43,7 @@ function vLoop(R,omega)
 end
 
 function RLoop(omega)
-    global numStep
+    global numStep startRot
     persistent allR
     if(isempty(allR))
         tempQ = zeros(4,(numStep+1)^4);
@@ -67,11 +71,12 @@ function RLoop(omega)
             if(acos(dot(newz,[0;0;1])) > pi/2)
                 continue
             end
-            tempR(:,end+1) = reshape(dc, [9,1]);
+            tempR(:,end+1) = reshape(dc*startRot, [9,1]);
         end
         allR = unique(tempR', 'row')';
     end
-    for i = 1:size(allR(1,:))
+    [~, numR] = size(allR(1,:))
+    for i = 1:numR
         vLoop(allR(:,i),omega)
     end
 end
@@ -79,19 +84,21 @@ end
 function omegaLoop()
     global numStep omegaMax motionPoints motionPrimatives
     i = 1;
-    for omegax = -omegaMax:2*omegaMax/numStep:omegaMax
-        for omegay = -omegaMax:2*omegaMax/numStep:omegaMax
+%     for omegax = -omegaMax:2*omegaMax/numStep:omegaMax
+    omegax = 0;
+    omegay = 0;
+%         for omegay = -omegaMax:2*omegaMax/numStep:omegaMax
             %Skip omegaz since assume no yaw
 %             for omegaz = -omegaMax:2*omegaMax/numStep:omegaMax
                 RLoop([omegax;omegay;0])
 %             end
-        end
+%         end
         fileName = ['D:/adrames/motionData', num2str(i),'.mat']
         i = i+1;
         save(fileName, 'motionPoints', 'motionPrimatives')
         motionPrimatives = {};
         motionPoints = [];
-    end
+%     end
 end
 
 function R = doubleCover(q)
@@ -127,7 +134,9 @@ function [trajs, rs] = hybridModelMobility(x_a)
         TMs = zeros(4, 2+(numMVals-1)*(numMVals+1)^2);
         i = 2;
         TMs(:,1) = [0; 0; 0; 0];
-        for trst=1/(numMVals+2):1/(numMVals+2):(1-1/(numMVals+2))
+%         for trst=0.3:0.7/(numMVals+2):1
+        for tempTrst=1/(numMVals+2):1/(numMVals+2):(1-1/(numMVals+2))
+            trst = 1 - tempTrst*tempTrst;
             diffVals = min(1-trst, trst)/2; % base is over 2
             for m1m3diff=-diffVals:2*diffVals/numMVals:diffVals
                 for m2m4diff=-diffVals:2*diffVals/numMVals:diffVals
