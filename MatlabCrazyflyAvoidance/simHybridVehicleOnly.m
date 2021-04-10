@@ -2,7 +2,7 @@
 function [t,j,out] = simHybridVehicleOnly(x, T, M, simTime)
     TSPAN = [0,simTime];
     JSPAN = [0,100];
-    HEQOptions = odeset('AbsTol', 1e-3,'RelTol',1e-3);
+    HEQOptions = odeset('AbsTol', 1e-1,'RelTol',1e-1);
     [t,j,out] =  HyEQsolver(@f,@g,@C,@D,[x; T; M],TSPAN,JSPAN,1,HEQOptions);
 end
 
@@ -16,7 +16,7 @@ function out = f(x)
     vdot = -R*[0;0;1]*(T/Mass) + [0;0;-9.8];
     Rdot = R*S(x(16:18));
     omegadot = -inv(J)*S(x(16:18))*J*x(16:18) + (J^-1 *M);
-    out = [pdot; vdot; reshape(Rdot, [9 1]); omegadot; T; M];
+    out = [pdot; vdot; reshape(Rdot, [9 1]); omegadot; 0; zeros(1,3)];
 end
 
 function out = g(x)

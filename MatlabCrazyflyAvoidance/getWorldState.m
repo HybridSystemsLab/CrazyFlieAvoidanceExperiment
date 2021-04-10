@@ -12,6 +12,7 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
     end
     
     Rpos = [-1, 0, 0; 0 0 1; 0 1 0];
+%     Rq = eye(3);
     Rq = [1, 0, 0; 0 -1 0; 0 0 -1];
 
     persistent lastPos lastRot lastT
