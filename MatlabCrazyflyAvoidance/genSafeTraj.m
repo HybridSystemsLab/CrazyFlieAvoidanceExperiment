@@ -46,7 +46,12 @@ function [phis,rs] = genSafeTraj(x_a, U)
                     x_o = cell2mat(U(j,k));
                     [~,u_t,~] = unique(x_o(:,1));
                     u_x_o = x_o(u_t,:);
-                    xos(:,:,k) = interp1(u_x_o(:,1),u_x_o,xos(:,1,1));
+                    u_x_o_size = size(u_x_o);
+                    if(u_x_o_size(1) == 1)
+                        xos(:,:,k) = u_x_o;
+                    else
+                        xos(:,:,k) = interp1(u_x_o(:,1), u_x_o, xos(:,1,1));
+                    end
                 end
                 xosCell{j} = xos;
             else
@@ -57,7 +62,7 @@ function [phis,rs] = genSafeTraj(x_a, U)
                 numXos = size(xos(:,1,1));
                 objColStepMaxed = min(objColStep, floor(numXos(1)/2));
                 hullPts = zeros(spherePts*(spherePts-1)*(4*(objColStepMaxed+1)),3);
-                for t = 1:objColStepMaxed:numXos(1)-objColStepMaxed
+                for t = 1:max(objColStepMaxed,1):max(numXos(1)-objColStepMaxed,1)
                     %Unroll points in sphere arond each point
                     pt_count = 0;
                     % Build convext hull over subset of obstacle samapled points
@@ -75,8 +80,7 @@ function [phis,rs] = genSafeTraj(x_a, U)
                             scatter3(hullPts(hullPtsNotOrig(:,1),1),hullPts(hullPtsNotOrig(:,1),2),hullPts(hullPtsNotOrig(:,1),3),color(k));
                             figure(56);
                             hold on
-                            hullPtsNotOrig = (hullPts(:,1:3) ~= [0 0 0]);
-                            scatter3(hullPts(hullPtsNotOrig(:,1),1),hullPts(hullPtsNotOrig(:,1),2),hullPts(hullPtsNotOrig(:,1),3),color(k));
+                            plot3(hullPtsNotOrig(:,1), hullPtsNotOrig(:,2), hullPtsNotOrig(:,3));
                         end
                     end
                 
@@ -311,7 +315,10 @@ end
 function [Mset,all_rs] = motionPrimMobility(x_a)
     global motionPrims executeTime
 
-    entryNum = dsearchn(motionPrims.motionPoints', x_a(7:18)');
+    [~,~,yawAng] = rot2eul(reshape(x_a(7:15),[3,3]));
+    yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
+    searchRot = reshape(yawRot*reshape(x_a(7:15),[3,3]),[1,9]);
+    entryNum = dsearchn(motionPrims.motionPoints(1:9,:)', searchRot);
     tempCell = motionPrims.motionPrimatives(entryNum);
     Mset = tempCell{1}(:,1);
     all_rs = tempCell{1}(:,2);
@@ -328,4 +335,25 @@ function [Mset,all_rs] = motionPrimMobility(x_a)
 %         all_rs(i) = mat2cell(tempRs + [0; x_a(1:3) + executeTime*x_a(4:6); x_a(4:6); zeros(24,1)]', r,c);
 %     end
 %     all_rs
+end
+   
+function [thetaX, thetaY, thetaZ] = rot2eul(R)
+    if(R(3,1)<1)
+        if(R(3,1)>-1)
+            thetaY = asin(-R(3,1));
+            thetaZ = atan2(R(2,1), R(1,1));
+            thetaX = atan2(R(3,2), R(3,3));
+        else
+            thetaY = pi/2;
+            thetaZ =-atan2(-R(2,3) , R(2,2));
+            thetaX = 0;
+        end
+    else
+        thetaY = -pi /2;
+        thetaZ = atan2(-R(2,3) , R(2,2));
+        thetaX = 0;
+    end
+    thetaX = rad2deg(thetaX);
+    thetaY = rad2deg(thetaY);
+    thetaZ = rad2deg(thetaZ);
 end

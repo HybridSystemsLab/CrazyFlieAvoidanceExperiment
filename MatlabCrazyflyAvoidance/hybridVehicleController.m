@@ -32,7 +32,7 @@ function [T,M] = hybridVehicleController(r, x, t)
         OutOfCD = 0;
     else
         disp("NO FLOW")
-        T = 0;
+        T = -1;
         M = [0;0;0];
     end
     if(OutOfCD)
@@ -137,6 +137,10 @@ function out = C(x)
     Q = Qfunc(R*R_0');
     out2 = norm(x(23:26)'*Q(:,1), Inf) <= alpha;
     out = out1 & out2;
+    if(~out)
+        a(1)*x(22)
+        norm(x(23:26)'*Q(:,1), Inf)
+    end
 end
 
 function out = D(x)
@@ -232,8 +236,8 @@ function mu = muFunc(x_a)
     r_tildae = r_tildae_Func(x_a);
     mu = sumK(r_tildae) - sumK(x_a(19)) - [0;0;-9.8] + a_r;
     if(norm(mu)*Mass > MaxMotorThrust*4)
-        disp('Over max thrust')
-        disp(norm(mu)*Mass/(MaxMotorThrust*4))
+%         disp('Over max thrust')
+%         disp(norm(mu)*Mass/(MaxMotorThrust*4))
         mu = MaxMotorThrust*4*mu/norm(mu);
     end
 end

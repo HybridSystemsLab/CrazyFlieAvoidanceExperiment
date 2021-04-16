@@ -18,6 +18,8 @@ function [tout, jout, xout] = bouncingBallModel(x0, simTime)
             x = fobj(x)'*timeStep + x;
             t = t+timeStep;
             tjx(i,:) = [t,j,x];
+        else
+            error('bbal out of CD');
         end
     end
     tout = tjx(:,1);
@@ -35,7 +37,7 @@ end
 
 function xplus = gobj(x)
     global lambda
-    xplus = [x(1); x(2)+spinEffect(x(7),x(8)); x(3); x(4)+spinEffect(x(7),x(8)); 0; -lambda*x(6); 0; 0];
+    xplus = [x(1); x(2)+spinEffect(x(7),x(8)); x(3); x(4)+spinEffect(x(7),x(8)); 0; -lambda*x(6); x(7:8)];
 end
 
 function flow = Cobj(x)
@@ -43,7 +45,7 @@ function flow = Cobj(x)
 end
 
 function jump = Dobj(x)
-    jump = x(5) <= 0 && x(6) <= 0;
+    jump = x(5) < 0 || (x(5) == 0 && x(6) <= 0);
 end
 
 function out = spinEffect(sigmaMin, sigmaMax)

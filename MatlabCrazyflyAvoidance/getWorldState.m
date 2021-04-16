@@ -12,7 +12,7 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
     end
     
     Rpos = [-1, 0, 0; 0 0 1; 0 1 0];
-%     Rq = eye(3);
+    Rq = eye(3);
     Rq = [1, 0, 0; 0 -1 0; 0 0 -1];
 
     persistent lastPos lastRot lastT
@@ -20,7 +20,10 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
     vehicle_pose = frameOfData.RigidBodies(obj_ID);
     t = frameOfData.fTimestamp;
     pos = Rpos*[vehicle_pose.x;vehicle_pose.y;vehicle_pose.z];
-    R = Rq*doubleCover([vehicle_pose.qw; vehicle_pose.qx; vehicle_pose.qy; vehicle_pose.qz]);
+%     [vehicle_pose.qw; vehicle_pose.qx; vehicle_pose.qy; vehicle_pose.qz]
+%     R = Rq*Rpos*doubleCover([vehicle_pose.qw; vehicle_pose.qx; vehicle_pose.qy; vehicle_pose.qz]);
+    q = [-vehicle_pose.qw; vehicle_pose.qx; vehicle_pose.qz; vehicle_pose.qy];
+    R = Rq*doubleCover(q);
     if isempty(lastPos)
         lastPos = pos;
     end
@@ -36,7 +39,7 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
         vel = [0;0;0];
     end
     omega = calcOmega(R, lastRot, t-lastT);
-    outR = R*[1 0 0; 0 1 0; 0 0 1]; % need to flip axis to match controller axis definitions
+    outR = R;
     
     
     
@@ -53,7 +56,7 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
     objState = {};
     nskip = 0;
     objPos = [];
-    for i = 1:frameOfData.nOtherMarkers
+    for i = 1:double(frameOfData.nOtherMarkers)
         obj = frameOfData.OtherMarkers(i);
         tempPos = Rpos*[obj.x;obj.y;obj.z];
         if(norm(tempPos - pos) < 0.1)

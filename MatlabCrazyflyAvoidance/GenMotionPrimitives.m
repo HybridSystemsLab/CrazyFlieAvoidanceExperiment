@@ -7,14 +7,14 @@ Mass = 0.028; %kg
 InertialTensor = [16.571710, 0.830806, 0.718277; 0.830806, 16.655602, 1.800197; 0.718277, 1.800197, 29.261652] * 10^-6; % 10^-6kg meters^2
 MaxMotorThrust = 0.1597;%newtons % 2.130295*10^-11 *65535^2 + 1.032633*10^-6 *65535 + 5.484560*10^-4
 d_xy = (( 2^0.5)/4)*0.092; %meters
-PlanningThrustMult = 0.9;
+PlanningThrustMult = 0.8;
 ConstThrust = 0;
-makePlot = 1;
+makePlot = 0;
 
 global numStep vMax omegaMax motionPoints motionPrimatives startRot
 motionPrimatives = {};
 motionPoints = [];
-numStep = 4; % + 1
+numStep = 9; % + 1
 vMax = 1;
 omegaMax = 0;
 startRot = [1 0 0; 0 -1 0; 0 0 -1];
@@ -68,14 +68,18 @@ function RLoop(omega)
         for i = 1:sz
             dc = doubleCover(allQ(:,i));
             newz = dc*[0;0;1];
-            if(acos(dot(newz,[0;0;1])) > pi/2)
+            if( acos(dot(newz,[0;0;1])) > pi/3)
+                continue
+            end
+            [Rx,Ry,Rz] = rot2eul(dc);
+            if(abs(Rx) > 30 || abs(Ry) > 30)
                 continue
             end
             tempR(:,end+1) = reshape(dc*startRot, [9,1]);
         end
         allR = unique(tempR', 'row')';
     end
-    [~, numR] = size(allR(1,:))
+    [~, numR] = size(allR(1,:));
     for i = 1:numR
         vLoop(allR(:,i),omega)
     end
@@ -95,7 +99,7 @@ function omegaLoop()
 %         end
         fileName = ['D:/adrames/motionData', num2str(i),'.mat']
         i = i+1;
-        save(fileName, 'motionPoints', 'motionPrimatives')
+        save(fileName, 'motionPoints', 'motionPrimatives', '-v7.3')
         motionPrimatives = {};
         motionPoints = [];
 %     end
@@ -193,6 +197,12 @@ function [trajs, rs] = hybridModelMobility(x_a)
 %             r = UsimVals(:,3:end);
         else
             [t,simJump,r] = simHybridVehicleOnly(x_a(1:18), TMs(1,j), TMs(2:4,j), planTime);
+            if(any(isnan(r)))
+                error('Nan in r');
+            end
+            if(t(end) < planTime)
+                error('Jump Out')
+            end
         end
         r = r(:,1:18);
         if(t(1) == t(2))
@@ -205,12 +215,34 @@ function [trajs, rs] = hybridModelMobility(x_a)
         jump = simJump;
         time = t;
         
+        %Remove jumps since time does not advance
+%         rawtSize = size(t);
+        [t, ut_id] = unique(t);
+        r = r(ut_id,:);
+%         if(size(t) ~= rawtSize | jump(end) > 0)
+%             disp('nonunique t')
+%         end
+        
         dt = gradient(t);
         global makePlot
         if makePlot 
             plot3(r(:,1),r(:,2),r(:,3));
-            pose = reshape(r(end,7:15),[3 3])*[0; 0; 0.01];
-            plot3([r(end,1),pose(1)+r(end,1)], [r(end,2),pose(2)+r(end,2)], [r(end,3),pose(3)+r(end,3)], 'r')
+%             pose = reshape(r(end,7:15),[3 3])*[0; 0; 0.01];
+%             plot3([r(end,1),pose(1)+r(end,1)], [r(end,2),pose(2)+r(end,2)], [r(end,3),pose(3)+r(end,3)], 'r')
+            xlabel('x');
+            ylabel('y');
+            zlabel('z');
+            [numPts,~] = size(r);
+            for i = 1:10:numPts(1)
+                pose = reshape(r(i,7:15),[3 3])*[0.1; 0; 0];
+                plot3([r(i,1),pose(1)+r(i,1)], [r(i,2),pose(2)+r(i,2)], [r(i,3),pose(3)+r(i,3)], 'g')
+                pose = reshape(r(i,7:15),[3 3])*[0; 0.1; 0];
+                plot3([r(i,1),pose(1)+r(i,1)], [r(i,2),pose(2)+r(i,2)], [r(i,3),pose(3)+r(i,3)], 'b')
+                pose = reshape(r(i,7:15),[3 3])*[0; 0; 0.1];
+                plot3([r(i,1),pose(1)+r(i,1)], [r(i,2),pose(2)+r(i,2)], [r(i,3),pose(3)+r(i,3)], 'r')
+                scatter3(r(1,2),r(1,3),r(1,4),'k');
+        %         plot3([out(i,2),pose(1)], [out(i,3),pose(2)], [out(i,4),pose(3)], 'k')
+            end
         end
         [~,dv] = gradient(r(:,4:6));
         vdot = dv./dt;
@@ -220,6 +252,9 @@ function [trajs, rs] = hybridModelMobility(x_a)
         [~,dw] = gradient(r(:,16:18));
         wdot = dw./dt;
         r = [t, r(:,1:6), vdot, adot, jdot, r(:,7:end), wdot];
+        if(any(isnan(r)))
+            error('Nan in r');
+        end
         %Run reference trajectories through controller
 %         [time,jump,phi] = hybridVehicle(r, x_a, planTime,1);
         %Check if jumped out
@@ -229,8 +264,38 @@ function [trajs, rs] = hybridModelMobility(x_a)
         %Save reference and resulting trajectories
         [row,col] = size([time,jump,phi]);
         numTraj = numTraj+1;
+        if(any(isnan([time,jump,phi])))
+            error("Found Nan in trajs")
+        end
+%         if(numTraj == 330)
+%             disp('330');
+%         end
         trajs(numTraj) = mat2cell([time,jump,phi],row,col);
         [row,col] = size(r);
+        if(any(isnan(r)))
+            error("Found Nan in rs")
+        end
         rs(numTraj) = mat2cell(r,row,col);
     end
+end
+
+function [thetaX, thetaY, thetaZ] = rot2eul(R)
+    if(R(3,1)<1)
+        if(R(3,1)>-1)
+            thetaY = asin(-R(3,1));
+            thetaZ = atan2(R(2,1), R(1,1));
+            thetaX = atan2(R(3,2), R(3,3));
+        else
+            thetaY = pi/2;
+            thetaZ =-atan2(-R(2,3) , R(2,2));
+            thetaX = 0;
+        end
+    else
+        thetaY = -pi /2;
+        thetaZ = atan2(-R(2,3) , R(2,2));
+        thetaX = 0;
+    end
+    thetaX = rad2deg(thetaX);
+    thetaY = rad2deg(thetaY);
+    thetaZ = rad2deg(thetaZ);
 end

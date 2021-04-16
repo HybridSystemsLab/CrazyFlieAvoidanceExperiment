@@ -2,6 +2,7 @@ import logging
 import time
 import zmq
 import simplejson as json
+import sys
 
 import cflib.crtp
 from cflib.crazyflie import Crazyflie
@@ -29,9 +30,13 @@ if __name__ == '__main__':
         scf.cf.param.set_value("motorPowerSet.enable", 1)
         motor_set(scf.cf)
         time.sleep(0.2)
+        print('Ready to send')
+        sys.stdout.flush()
         
         while(True):
             mVals = rcvsocket.recv_json()
-            motor_set(scf.cf, mVals['m1'],mVals['m2'],mVals['m3'],mVals['m4'])
+            print(mVals)
+            sys.stdout.flush()
+#            motor_set(scf.cf, mVals['m1'],mVals['m2'],mVals['m3'],mVals['m4'])
             
         motor_set(scf.cf)
