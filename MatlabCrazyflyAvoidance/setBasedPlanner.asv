@@ -36,7 +36,7 @@ function out = setBasedPlanner(x_a, x_o, costFun)
         for i = 1:numRef(1)
             ref = cell2mat(r(i));
             if(useMotionPrim)
-                [~,~,yawAng] = rot2eul(x_a(7:15));
+                [~,~,yawAng] = rot2eul(reshape(7:15));
                 yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
                 [rr, ~] = size(ref);
                 spunr = [ref(:,1), ref(:,2:4)*yawRot', ref(:,5:7)*yawRot', ref(:,8:10)*yawRot', ref(:,11:13)*yawRot', ref(:,14:16)*yawRot', zeros(rr,9), ref(:,26:31)];
@@ -61,7 +61,7 @@ function out = setBasedPlanner(x_a, x_o, costFun)
     end
     if(useMotionPrim)
         temppath = cell2mat(phi(1));
-        [~,~,yawAng] = rot2eul(x_a(7:15));
+        [~,~,yawAng] = rot2eul(reshape(x_a(7:15),[3,3]));
         yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
         [rr, ~] = size(temppath);
         spunpath = [temppath(:,1:2), temppath(:,3:5)*yawRot', temppath(:,6:8)*yawRot', zeros(rr,9), temppath(:,18:20)];
@@ -83,7 +83,7 @@ function out = setBasedPlanner(x_a, x_o, costFun)
     for i=2:numTraj
         if(useMotionPrim)
             temppath = cell2mat(phi(i));
-            [~,~,yawAng] = rot2eul(x_a(7:15));
+            [~,~,yawAng] = rot2eul(reshape(x_a(7:15),[3,3]));
             yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
             [rr, ~] = size(temppath);
             spunpath = [temppath(:,1:2), temppath(:,3:5)*yawRot', temppath(:,6:8)*yawRot', zeros(rr,9), temppath(:,18:20)];

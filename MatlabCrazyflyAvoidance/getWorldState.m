@@ -59,7 +59,7 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
     for i = 1:double(frameOfData.nOtherMarkers)
         obj = frameOfData.OtherMarkers(i);
         tempPos = Rpos*[obj.x;obj.y;obj.z];
-        if(norm(tempPos - pos) < 0.1)
+        if(norm(tempPos - pos) < 0.2)
             nskip = nskip+1;
             continue
         end

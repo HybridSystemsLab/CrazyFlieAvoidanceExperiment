@@ -114,7 +114,7 @@ end
 
 function [trajs, rs] = hybridModelMobility(x_a)
     global d_xy MaxMotorThrust planTime FirstRunEject ConstThrust PlanningThrustMult
-    numMVals = 8; % Use even number
+    numMVals = 7; % +1
     
     %Generate reference trajs for vehicle
     persistent TMs i

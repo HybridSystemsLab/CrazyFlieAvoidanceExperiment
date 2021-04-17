@@ -3,11 +3,11 @@ close all
 clc
 
 global motionPrims plot77
-plot77 = 0;
-% motionPrims = [];
+plot77 = 1;
+motionPrims = [];
 
 global plot88
-plot88 = 0;
+plot88 = 1;
 
 global noSendCF
 noSendCF = 1;
@@ -34,8 +34,8 @@ function runCFavoidance()
     ObjPlot55 = 0;
 
     global Target TargetRad
-    Target = [0.7,-0.1,0.76];
-    TargetRad = 0.0;
+    Target = [0,0,2];
+    TargetRad = 0.3;
 
     global mobilityRadius usingPointMassVehicle maxAcc Mass InertialTensor MaxMotorThrust d_xy PlanningThrustMult useMotionPrim
     usingPointMassVehicle = 0;
@@ -65,7 +65,7 @@ function runCFavoidance()
     k_q = 1;
     
     global spherePts spx spy spz
-    spherePts = 3;
+    spherePts = 5;
     [spx, spy, spz] = sphere(spherePts);
     spx = obstacleSize*reshape(spx(:,1:spherePts),[],1);
     spy = obstacleSize*reshape(spy(:,1:spherePts),[],1);
@@ -103,9 +103,9 @@ function runCFavoidance()
     cleanupObj = onCleanup(@()cleanupFunc(Client, socket));
 
     %Load motion primatives
-%     if(~exist('motionPrims', 'var'))
+    if(~exist('motionPrims', 'var'))
         global motionPrims
-%     end
+    end
     if(isempty(motionPrims))
         disp('Loading motionPrims from file')
     %     motionPrims = load('D:\adrames\motionData_omegaMax5_numStep11_numVals7\motionData.mat');
@@ -155,7 +155,7 @@ function runCFavoidance()
         end
         
         if(i == 1)
-            Target = p_a'
+            Target = p_a
 %             f = parfeval(@setBasedPlanner,1,x_a, x_o, @cost);
 %             tarState = [p_a' + [0 0 0], zeros(1,12), reshape([1 0 0; 0 -1 0; 0 0 -1]*Rmod, [1,9]), zeros(1,3)];
 %             tarState = [p_a' + [0 0 0.1], zeros(1,12), reshape(Rmod*[1 0 0; 0 1 0; 0 0 1], [1,9]), zeros(1,3)];
@@ -175,7 +175,6 @@ function runCFavoidance()
                 rAsState = [rAsStateTemp(1:6), rAsStateTemp(16:27)]';
                 if(any(isnan(rAsState)))
                     disp('bad r state');
-                    return
                 end
                 lpTime = tic;
                 r = setBasedPlanner(rAsState, x_o, @cost);
@@ -299,30 +298,25 @@ end
 
 function [out, decelTerm, AngTerm] = cost(traj,plotCost)
     global Target TargetRad executeTime planTime
-%     [Tr Tc] = size(Target);
-%     if(Tr > Tc)
-%         Target = Target';
-%         disp('Target must be a row vector');
-%     end
 %     dist = max(norm(traj(end,3:5)-Target) - TargetRad, 0);
-%     if(~exist('plotCost','var'))
-%         plotCost = 0;
-%     end
-%     if plotCost == 1
-%         exState = traj(:,1:end);
-%     else
+    if(~exist('plotCost','var'))
+        plotCost = 0;
+    end
+    if plotCost == 1
+        exState = traj;
+    else
 %         exState = interp1(traj(:,1),traj(:,3:end),traj(end,1) - planTime + executeTime)
         exState = traj(end,3:end);
-%     end
-%     if(any(isnan(exState)))
-%         traj(end,1) - planTime + executeTime
-%         traj
-%         AngTerm = inf;
-%         decelTerm = inf;
-%         out = inf;
-%         pause
-%         return
-%     end
+    end
+    if(any(isnan(exState)))
+        traj(end,1) - planTime + executeTime
+        traj
+        AngTerm = inf;
+        decelTerm = inf;
+        out = inf;
+        pause
+        return
+    end
     dist = max(norm(exState(end,1:3)-Target) - TargetRad, 0);
 %     if(isempty(prevRef))
 %         hysteresisCost = 0;
@@ -343,16 +337,16 @@ function [out, decelTerm, AngTerm] = cost(traj,plotCost)
 %         poseTerm = 10000;
 %     end
     
-%     R = reshape(exState(end,7:15),[3,3]);
-%     phi = acos(dot(R*[0;0;1], [0;0;1]));
-%     phi = min(abs(phi), abs(phi-pi));
-%     poseTerm = 1;%2-cos(phi)^4;
-%     if(phi>=pi/3)
-%         poseTerm = 10000;
-%         if(phi>=pi/2)
-%             poseTerm = Inf;
-%         end
-%     end
+    R = reshape(exState(end,7:15),[3,3]);
+    phi = acos(dot(R*[0;0;1], [0;0;1]));
+    phi = min(abs(phi), abs(phi-pi));
+    poseTerm = 1;%2-cos(phi)^4;
+    if(phi>=pi/3)
+        poseTerm = 10000;
+        if(phi>=pi/2)
+            poseTerm = Inf;
+        end
+    end
 
 %     stopingPoint = (exState(4:6).*abs(exState(4:6)))/(maxAcc*2) + exState(1:3);
 %     dist = max(norm(stopingPoint-Target) - TargetRad, 0);
@@ -368,11 +362,11 @@ function [out, decelTerm, AngTerm] = cost(traj,plotCost)
 %     proj = (dot(AB,AT)/(norm(AT)*norm(AT)))*AT;
 %     rej = AB-proj;
     
-    decelTerm = 0;%norm(exState(4:6))/10;
-    AngTerm = 0;%phi;
+    decelTerm = norm(exState(4:6))/10;
+    AngTerm = phi;
     
 %     out = (max(norm(AT-proj)-TargetRad, 0) + 4*norm(rej))*poseTerm;
-    out = dist;%*poseTerm + decelTerm;
+    out = dist;%t*poseTerm + decelTerm;
 %     out = dist*poseTerm + norm(exState(6:8))/5 + hysteresisCost/10;
 end
 

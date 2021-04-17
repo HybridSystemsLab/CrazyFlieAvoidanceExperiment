@@ -23,14 +23,13 @@ function out = f(x)
 end
 
 function out = g(x)
-%     Rfixing = [1 0 0; 0 -1 0; 0 0 -1];
     Rfixing = eye(3);
     R = reshape(x(7:15), [3 3]);
     [Rx,Ry,~] = rot2eul(Rfixing*R);
     Mx = x(end-2);
     My = x(end-1);
-    wx = x(end-5);
-    wy = x(end-4);
+    wx = x(end-6);
+    wy = x(end-5);
     if(abs(abs(Rx)-180) > 30)
         Mx = 0;
         wx = 0;
@@ -39,7 +38,7 @@ function out = g(x)
         My = 0;
         wy = 0;
     end
-    out = [x(1:end-6);wx;wy;x(end-3);Mx;My;x(end)];
+    out = [x(1:end-7);wx;wy;x(end-4:end-3);Mx;My;x(end)];
 end
  
 function out = C(x)
@@ -47,11 +46,9 @@ function out = C(x)
 end
 
 function out = D(x)
-%     Rfixing = [1 0 0; 0 -1 0; 0 0 -1];
     Rfixing = eye(3);
     R = reshape(x(7:15), [3 3]);
-    [Rx,Ry,Rz] = rot2eul(Rfixing*R);
-    a = Rz;
+    [Rx,Ry,~] = rot2eul(Rfixing*R);
     if((abs(abs(Rx)-180) > 30 && x(end-2) ~= 0) || (abs(Ry) > 30 && x(end-1) ~= 0))
         out = 1;
     else
