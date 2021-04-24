@@ -8,14 +8,14 @@
 % r_omega = 25:27
 % r_omeagadot = 28:30
 function [T,M, xc] = hybridVehicleController(r, x, t)
-    global QUAD_REFERENCE lastT omegaMapReset
+    global QUAD_REFERENCE lastT
     
     persistent zdot
     
     if(isempty(lastT))
         lastT = [x;0];
     end
-    if(isempty(zdot) | omegaMapReset)
+    if(isempty(zdot))
         zdot = zeros(3,1);
     end
     dt = t-lastT(end);
@@ -47,14 +47,12 @@ function xOut = updateIntegralState(x, dt, zdot)
 end
 
 function [T,M,zdot] = f(x,dt)
-    global InertialTensor Mass k k_omega k_z MaxMotorThrust d_xy errLog q_1Log omegaMapReset
+    global InertialTensor Mass k k_omega k_z MaxMotorThrust d_xy
     persistent lastomega_0 lastp_0 lastv_0
-    
-    lastReset = omegaMapReset;
     
     omega_0 = omega_0Func(x);
     
-    if(isempty(lastomega_0)|lastReset)
+    if(isempty(lastomega_0))
         lastomega_0 = omega_0;
     end
     
@@ -67,10 +65,10 @@ function [T,M,zdot] = f(x,dt)
 %     dt = x(end) - lastt;
     domega_0 = omega_0 - lastomega_0;
     domega_0dt = domega_0/dt;
-    domega_0dt(isnan(domega_0dt)|isinf(domega_0dt)) = 0;
-%     if(any(abs(domega_0dt)>1e-1))
-%         domega_0dt = domega_0dt/(norm(domega_0dt)*10);
-%     end
+    if(any(isnan(domega_0dt)|isinf(domega_0dt)|(abs(dt)<1e-18&abs(domega_0dt)>1e4)))
+        domega_0dt
+        domega_0dt = [0; 0; 0];
+    end
     lastomega_0 = omega_0;
 
     q_1 = argmaxP(R*R_0', x(23:26));
@@ -85,11 +83,8 @@ function [T,M,zdot] = f(x,dt)
 %     -k_omega*(x(16:18)-omega_0)
 %     -k*x(20)*R_0'*q_1(2:4)
 %     domega_0dt
-%     TorqueVals(:,:,end+1) = [[dt;dt;dt], k*x(20)*R_0'*q_1(2:4), min(domega_0dt, 1e4)];
-%     TorqueTerm1 = max(1,min(-k_omega*(x(16:18)-omega_0),1));
-    torque = S(x(16:18))*InertialTensor*x(16:18)+((InertialTensor)*(-k_omega*(x(16:18)-omega_0)-k*x(22)*R_0'*q_1(2:4) + domega_0dt));
-    q_1Log(end+1,:) = [q_1;1e3*(InertialTensor)*-k_omega*(x(16:18)-omega_0);1e3*(InertialTensor)*(-k*x(22)*R_0'*q_1(2:4));1e3*(InertialTensor)*domega_0dt; omega_0]';
-%     torque = S(x(16:18))*InertialTensor*x(16:18)+((InertialTensor)*(TorqueTerm1-k*x(22)*R_0'*q_1(2:4) + domega_0dt));
+
+    torque = S(x(16:18))*InertialTensor*x(16:18)+((InertialTensor)*(-k_omega*(x(16:18)-omega_0)-k*x(20)*R_0'*q_1(2:4) + domega_0dt));
     
 %     pause
 %     motorDiff = min(MaxMotorThrust - min(norm(mu)*Mass/4, MaxMotorThrust), norm(mu)*Mass/4);
@@ -107,16 +102,15 @@ function [T,M,zdot] = f(x,dt)
         error("Torque is NAN");
     end
     
-    p_0 = -r(1:3) + x(1:3);
-    v_0 = -r(4:6) + x(4:6);
-%     v_0(abs(v_0) < 1e-4) = 0;
-    if(isempty(lastp_0)|lastReset)
+    p_0 = r(1:3) - x(1:3);
+    v_0 = r(4:6) - x(4:6);
+    if(isempty(lastp_0))
         lastp_0 = p_0;
     end
-    if(isempty(lastv_0)|lastReset)
+    if(isempty(lastv_0))
         lastv_0 = v_0;
     end
-    errLog(:,:,end+1) = [p_0, v_0];
+    
 %     pdot = x(4:6);
 %     vdot = mu + [0;0;-9.8];
 %     Rdot = reshape(R*S(x(16:18)),9,1);
@@ -124,7 +118,7 @@ function [T,M,zdot] = f(x,dt)
     dV_0_bar = (V_0_bar(p_0, v_0)-V_0_bar(lastp_0, lastv_0));
     dv_0 = (v_0-lastv_0);
     derivativePart =[dV_0_bar/dv_0(1);dV_0_bar/dv_0(2);dV_0_bar/dv_0(3)];
-    derivativePart(isnan(derivativePart)|isinf(derivativePart)) = 0;
+    derivativePart(isnan(derivativePart)|isinf(derivativePart)|(abs(dv_0)<1e-18&abs(derivativePart)>1e6)) = 0;
     
     zdot = k_z*(derivativePart);
     T = Mass*norm(mu);
@@ -161,10 +155,10 @@ function out = C(x)
     Q = Qfunc(R*R_0');
     out2 = norm(x(23:26)'*Q(:,1), Inf) <= alpha;
     out = out1 & out2;
-%     if(~out)
-%         a(1)*x(22)
-%         norm(x(23:26)'*Q(:,1), Inf)
-%     end
+    if(~out)
+        a(1)*x(22)
+        norm(x(23:26)'*Q(:,1), Inf)
+    end
 end
 
 function out = D(x)
@@ -258,10 +252,10 @@ function mu = muFunc(x_a)
     r = getReference(x_a(end));
     a_r = r(7:9);
     r_tildae = r_tildae_Func(x_a);
-    mu = -sumK(r_tildae) - sumK(x_a(19:21)) - [0;0;-9.8] + a_r;
+    mu = sumK(r_tildae) - sumK(x_a(19)) - [0;0;-9.8] + a_r;
     if(norm(mu)*Mass > MaxMotorThrust*4)
-        disp('Over max thrust')
-        disp(norm(mu)*Mass/(MaxMotorThrust*4))
+%         disp('Over max thrust')
+%         disp(norm(mu)*Mass/(MaxMotorThrust*4))
         mu = MaxMotorThrust*4*mu/norm(mu);
     end
 end
@@ -274,10 +268,9 @@ function R_0 = makeR0(R_r, mu)
         pause
     end
     gamma = -S(R_r*[0;0;1])*muOverMuNorm;
+    squareTerm = ((S(gamma)^2)/(1-[0;0;1]'*R_r'*muOverMuNorm));
     if(gamma == zeros(3,1))
         squareTerm = zeros(3,3);
-    else
-        squareTerm = ((S(gamma)^2)/(1-[0;0;1]'*R_r'*muOverMuNorm));
     end
     R_0 = (eye(3) + S(gamma)+ squareTerm)*R_r;
 end
@@ -285,8 +278,8 @@ end
 function r_tildae = r_tildae_Func(x_a)
     global k_p k_v
     r = getReference(x_a(end));
-    p_0 =  x_a(1:3) - r(1:3);
-    v_0 = x_a(4:6) - r(4:6);
+    p_0 = r(1:3) - x_a(1:3);
+    v_0 = r(4:6) - x_a(4:6);
     r_tildae = k_p*p_0 + k_v*v_0;
 end
 
@@ -301,7 +294,7 @@ function out = sigma_K_Integral(x)
         global K
         pK = K;
     end
-    out = pK*(2*x*atan(x)-log((x^2)+1))/pi;
+    out = pK*(2*x*atan(x)-log(x^2+1))/pi;
 end
 
 function out = sumK(x)
@@ -321,11 +314,9 @@ function out = omega_0Func(x)
 %         omega_0FuncVals = [];
 %     end
     
-%     zeroDv0 = 0;
     persistent lastMapOmegaFunc 
     if (isempty(lastMapOmegaFunc) || omegaMapReset == 1)
         omegaMapReset = 0;
-%         zeroDv0 = 1;
         tempr = getReference(0);
         tempmu = muFunc(x);
         lastMapOmegaFunc = [0, (tempr(1:6) - xi_a(1:6))', xi_a(19:21)', reshape(makeR0(reshape(tempr(16:24),3,3), tempmu), [1,9])]';
@@ -363,12 +354,12 @@ function out = omega_0Func(x)
     R = reshape(x(7:15),3,3);
     R_0 = makeR0(R_r, mu);
     q = argmaxP(R*R_0', x(23:26));
-    p_0 = -r(1:3) + x(1:3);
-    v_0 = -r(4:6) + x(4:6);
+    p_0 = r(1:3) - x(1:3);
+    v_0 = r(4:6) - x(4:6);
     dV_0 = (V_0(p_0, v_0,x(19:21))-V_0(lastp_0, lastv_0, lastz));
     dv_0 = (v_0-lastv_0);
     D_v0V0 =[dV_0/dv_0(1);dV_0/dv_0(2);dV_0/dv_0(3)];
-    D_v0V0(isnan(D_v0V0)|isinf(D_v0V0)|(abs(dv_0)<1e-6&abs(D_v0V0)>1e6)) = 0;
+    D_v0V0(isnan(D_v0V0)|isinf(D_v0V0)|(abs(dv_0)<1e-18&abs(D_v0V0)>1e6)) = 0;
     omega_0_star = (2*k_z*k_V_0/(k*x(22))) * (q(1)*S(mu)-S(mu)*S(q(2:4)))* D_v0V0;
     timeDelta = x(end)-lastt;
     dR_dt = ((reshape(R_0-lastR_0, 9,1))/timeDelta);
@@ -376,12 +367,8 @@ function out = omega_0Func(x)
         dR_dt = zeros(9,1);
     end
     out = -0.5*R_0'*(gamma(R_0)'*dR_dt) + R_0'*(-omega_0_star - k_q*x(22)*q(2:4));
-%     out = max(min(out, 10),-10);
-%     if(any(abs(out)>1e2))
-%         abcdef = 1;
-%     end
 %     if(~ismember(lastMapOmegaFunc(1,:),x(end)))
-        lastMapOmegaFunc(:,end) = [x(end), p_0', v_0', x(19:21)', reshape(R_0, [1, 9])]';
+        lastMapOmegaFunc(:,end+1) = [x(end), p_0', v_0', x(19:21)', reshape(R_0, [1, 9])]';
 %     else
 %         persistent numRep
 %         if(isempty(numRep))

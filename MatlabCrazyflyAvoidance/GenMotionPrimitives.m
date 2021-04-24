@@ -2,7 +2,7 @@ close all
 clear
 clc
 global Mass InertialTensor MaxMotorThrust d_xy PlanningThrustMult ConstThrust planTime makePlot
-planTime = 0.5;
+planTime = .3;
 Mass = 0.028; %kg
 InertialTensor = [16.571710, 0.830806, 0.718277; 0.830806, 16.655602, 1.800197; 0.718277, 1.800197, 29.261652] * 10^-6; % 10^-6kg meters^2
 MaxMotorThrust = 0.1597;%newtons % 2.130295*10^-11 *65535^2 + 1.032633*10^-6 *65535 + 5.484560*10^-4
@@ -14,7 +14,7 @@ makePlot = 0;
 global numStep vMax omegaMax motionPoints motionPrimatives startRot
 motionPrimatives = {};
 motionPoints = [];
-numStep = 7; % + 1
+numStep = 5; % + 1
 vMax = 1;
 omegaMax = 0;
 startRot = [1 0 0; 0 -1 0; 0 0 -1];
@@ -114,7 +114,7 @@ end
 
 function [trajs, rs] = hybridModelMobility(x_a)
     global d_xy MaxMotorThrust planTime FirstRunEject ConstThrust PlanningThrustMult
-    numMVals = 8; % Use even number
+    numMVals = 4; % Use even number
     
     %Generate reference trajs for vehicle
     persistent TMs i
@@ -234,16 +234,15 @@ function [trajs, rs] = hybridModelMobility(x_a)
             zlabel('z');
             [numPts,~] = size(r);
             for i = 1:10:numPts(1)
-                pose = reshape(r(i,7:15),[3 3])*[0.1; 0; 0];
+                pose = reshape(r(i,7:15),[3 3])*[0.01; 0; 0];
                 plot3([r(i,1),pose(1)+r(i,1)], [r(i,2),pose(2)+r(i,2)], [r(i,3),pose(3)+r(i,3)], 'g')
-                pose = reshape(r(i,7:15),[3 3])*[0; 0.1; 0];
+                pose = reshape(r(i,7:15),[3 3])*[0; 0.01; 0];
                 plot3([r(i,1),pose(1)+r(i,1)], [r(i,2),pose(2)+r(i,2)], [r(i,3),pose(3)+r(i,3)], 'b')
-                pose = reshape(r(i,7:15),[3 3])*[0; 0; 0.1];
+                pose = reshape(r(i,7:15),[3 3])*[0; 0; 0.01];
                 plot3([r(i,1),pose(1)+r(i,1)], [r(i,2),pose(2)+r(i,2)], [r(i,3),pose(3)+r(i,3)], 'r')
                 scatter3(r(1,2),r(1,3),r(1,4),'k');
         %         plot3([out(i,2),pose(1)], [out(i,3),pose(2)], [out(i,4),pose(3)], 'k')
             end
-            disp('a')
         end
         [~,dv] = gradient(r(:,4:6));
         vdot = dv./dt;

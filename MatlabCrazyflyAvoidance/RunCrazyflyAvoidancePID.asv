@@ -1,13 +1,14 @@
 close all
 clear
-clear global
+% clear global
 % clc
 
-global motionPrims plot77 errLog q_1Log
+global motionPrims plot77 errLog q_1Log resetPIDs
 plot77 = 0;
 % motionPrims = [];
 errLog = [];
 q_1Log = [];
+resetPIDs = 1;
 
 global plot88
 plot88 = 0;
@@ -28,12 +29,12 @@ function runCFavoidance()
     sigma_max = 0.2;
     planTime = 0.25;
 %     planStep = 0.5;
-    executeTime = 0.18;
+    executeTime = 0.23;
     worldTimeStep = 0.1;
-    obstacleSize = 0.05;
+    obstacleSize = 0.2;
     FirstRunEject = 0;
     ConstThrust = 1;
-    objColStep = 100;
+    objColStep = 20;
     prevRef = [];
     ObjPlot55 = 0;
 
@@ -56,28 +57,17 @@ function runCFavoidance()
     global Qdelta alpha K k_V_0 k_z k_p k_v k k_omega k_b1 k_b2 beta k_q
     Qdelta = 0.75; % Qdelta \in (0,1)
     alpha = 0.75; % \in (0,1)
-    K = 1;
-    k_V_0 = 0.01;
-    k_z = 0.3;
-    k_p = 3;
-    k_v = 6;
+    K = 0.5;
+    k_V_0 = 0.001;
+    k_z = 0.03;
+    k_p = 1;
+    k_v = .3;
     k = 3;
-    k_omega = 40;
+    k_omega = 4;
     k_b1 = 1;
     k_b2 = 1;
-    beta = k_v/4; % beta \in (0,k_v)
-    k_q = 1;
-%     K = 0.5;
-%     k_V_0 = 0.001;
-%     k_z = 0.03;
-%     k_p = 1;
-%     k_v = .3;
-%     k = 3;
-%     k_omega = 4;
-%     k_b1 = 1;
-%     k_b2 = 1;
-%     beta = k_v/400; % beta \in (0,k_v)
-%     k_q = 2;
+    beta = k_v/400; % beta \in (0,k_v)
+    k_q = 2;
 
     global spherePts spx spy spz
     spherePts = 3;
@@ -118,17 +108,14 @@ function runCFavoidance()
     cleanupObj = onCleanup(@()cleanupFunc(Client, socket));
 
     %Load motion primatives
-%     if(~exist('motionPrims', 'var'))
-        global motionPrims
-%     end
+    global motionPrims
     if(isempty(motionPrims))
         disp('Loading motionPrims from file')
-%         motionPrims = load('D:\adrames\motionData_numStep7_numVals8_0.5sec\motionData.mat');
+        motionPrims = load('D:\adrames\motionData_numStep7_numVals6_0.25sec\motionData.mat');
 %         motionPrims = load('D:\adrames\motionData_omegaMax0_numStep9_numVals7_AngLim\motionData_v2.mat');
-        motionPrims = load('D:\adrames\motionData1.mat');
+%         motionPrims = load('D:\adrames\motionData1.mat');
         disp('Done loading motionPrims from file')
         pause
-%         java.lang.Thread.sleep((5)*10)
     end
 
     %Run planner and update world
@@ -158,158 +145,112 @@ function runCFavoidance()
     lpTime = 0;
     LoopTime = zeros(10,1);
     
+    x_oLog = [];
+    
     
     simState = [];
     pTime = [];
     
+%     pause(5)
+    
     global errLog
     for i=1:numIt
         loopTime = tic;
-%         [~, p_a,v_a,R_a,omega_a, ~] = getWorldState(Client, 1);
-%         x_a = [p_a;v_a;reshape(R_a, [9,1]); omega_a; x_a(19:end)];
-%         x_aLog(i,:) = x_a(1:18);
         
         %Run planner
         if(i == 1)
-            [~, p_a,v_a,R_a,omega_a, x_o] = getWorldState(Client, 1, 1);
+            [~, p_a,v_a,R_a,omega_a, x_o, ~] = getWorldState(Client, 1, 1,x_oLog);
             x_a = [p_a;v_a;reshape(R_a, [9,1]); omega_a; x_a(19:end)];
             x_aLog(i,:) = [x_a', 0];
                 
             xi_a = x_a;
             simState = x_a(1:18);
             
-            Target = p_a' + [0.2,0.2,0.2];
+            Target = p_a';
 %             rR = [1 0 0; 0 1 0; 0 0 1]
-            startState = [p_a' + [0 0 0], 0, 0, 0.0, 0,0,1,zeros(1,6), reshape(Rmod, [1,9]), zeros(1,3)];
-            tarState = [p_a' + [0 0 .1], 0, 0, 0.1, 0,0,0,zeros(1,6), reshape(Rmod, [1,9]), zeros(1,3)];
-            endState = [p_a' + [0 0 .1], zeros(1,12), reshape(Rmod, [1,9]), zeros(1,3)];
+%             startState = [p_a' + [0 0 0], 0, 0, 0.0, 0,0,1,zeros(1,6), reshape(Rmod, [1,9]), zeros(1,3)];
+%             tarState = [Target, 0, 0, 0.1, 0,0,0,zeros(1,6), reshape(Rmod, [1,9]), zeros(1,3)];
+%             endState = [p_a' + [0 0 .1], zeros(1,12), reshape(Rmod, [1,9]), zeros(1,3)];
 %             r = [0,startState; 1, tarState;2, endState; 100, endState];
 %             r = [0, startState; 100, startState];
-
-            rSine_t = (0:0.01:10)';
-            [rtr, rtc] = size(rSine_t);
-            rSine_p = [sin(2*pi*rSine_t/10)/2 + p_a(1), cos(2*pi*rSine_t/10)/2 + p_a(2), repmat(p_a(3)+0.1, rtr,rtc)];
-            [~,rSine_v] = gradient(rSine_p);
-            [~,rSine_a] = gradient(rSine_v);
-            rSine_R = repmat([1 0 0 0 -1 0 0 0 -1], rtr, rtc);
-            r = [rSine_t, rSine_p, rSine_v, rSine_a, zeros(rtr,6),rSine_R, zeros(rtr,3)];
-
-%             lptime = tic
-%             r = setBasedPlanner(x_a, x_o, @cost);
-            fullTime = tic;
-%             toc(lptime)
-%             lpTime = tic;
-            r_log = [r_log(end,1)+r(:,1), r(:,2:end)];
             
-%             % Update vehicle state after planning
-%             [~, p_a,v_a,R_a,omega_a, ~] = getWorldState(Client, 1);
+%             r = [0, tarState; 100, tarState];
+
+%             rSine_t = (0:0.01:10)';
+%             [rtr, rtc] = size(rSine_t);
+%             rSine_p = [sin(2*pi*rSine_t/20)/5 + p_a(1), cos(2*pi*rSine_t/10)/5 + p_a(2), repmat(p_a(3)+0.1, rtr,rtc)];
+%             [~,rSine_v] = gradient(rSine_p);
+%             [~,rSine_a] = gradient(rSine_v);
+%             rSine_R = repmat([1 0 0 0 -1 0 0 0 -1], rtr, rtc);
+%             r = [rSine_t, rSine_p, rSine_v, rSine_a, zeros(rtr,6),rSine_R, zeros(rtr,3)];
+
+            r = setBasedPlanner(x_a, x_o, @cost);
+            fullTime = tic;
+            r_log = [r_log(end,1)+r(:,1), r(:,2:end)];
         else
-%             [rr, ~] = size(r);
-%             if(r(floor(rr*(executeTime/planTime)),1) < toc(fullTime))
-            if(r(1,1)+(executeTime) < toc(fullTime) & 0)
-%                 LoopTime(numPlans) = toc(lpTime);
-%                 break;
-%             if(t > lastT + executeTime)
-%             if(toc(lpTime) >= executeTime)
-                    
-                curTime = toc(fullTime)
+            if(r(1,1)+(executeTime) < toc(fullTime))      
+                curTime = toc(fullTime);
                 rAsStateTemp = interp1(r(:,1),r(:,2:end), curTime);
                 rAsState = [rAsStateTemp(1:6), rAsStateTemp(16:27)]';
                 if(any(isnan(rAsState)))
                     rAsState
+                    r(1,1)+(executeTime)
+                    curTime
                     error('bad r state');
                     return
                 end
-                [~, p_a,v_a,R_a,omega_a, x_o] = getWorldState(Client, 1, 1);
+                [~, p_a,v_a,R_a,omega_a, x_o,~] = getWorldState(Client, 1, 1,x_oLog);
                 x_a = [p_a;v_a;reshape(R_a, [9,1]); omega_a; x_a(19:end)];
                 x_aLog(i,:) = [x_a; curTime];
-%                 r = setBasedPlanner(x_a, x_o, @cost);
+%                 planTic = tic;
+                sendCFPIDdata(socket,thrust, 0, 0, 0)
+                r = setBasedPlanner(x_a, x_o, @cost);
+%                 toc(planTic)
 
-                r = setBasedPlanner(rAsState, x_o, @cost);
-                timeOffset = toc(fullTime);
+%                 r = setBasedPlanner(rAsState, x_o, @cost);
+%                 timeOffset = toc(fullTime);
                 timeOffset = curTime;
                 r(:,1) = r(:,1) + timeOffset;
                 r_log = [r_log;r(:,1), r(:,2:end)];
                 
                 numPlans = numPlans +1;
-%                 lpTime = tic;
-                
-%                 % Update vehicle state after planning
-%                 [~, p_a,v_a,R_a,omega_a, ~] = getWorldState(Client, 1);
             end
         end
         
         %Update only vehicle information
-        [~, p_a,v_a,R_a,omega_a, ~] = getWorldState(Client, 1, 0);
+        [~, p_a,v_a,R_a,omega_a, ~,x_oLog] = getWorldState(Client, 1, 1,x_oLog);
         x_a = [p_a;v_a;reshape(R_a, [9,1]); omega_a; x_a(19:end)];
-%         x_a = [simState; x_a(19:end)];
 
         curTime = toc(fullTime);
-%         if(isempty(pTime))
-%             pTime = 0;
-%         end
-        [Tnew, Mnew, xc] = hybridVehicleController(r,x_a,curTime);
-        x_a(19:end) = xc;
-        x_aLog(i,:) = [x_a; curTime];
-        if(Tnew >= 0)
-            T = Tnew;
-            M = Mnew;
-            M(1:2) = min(max(M(1:2), -d_xy*MaxMotorThrust), d_xy*MaxMotorThrust);
-            M(3) = min(max(M(3), -9.6826e-04),9.6826e-04);
-%             M(3) = 0;
+        x_aLog(i,:) = [x_a', curTime];
+        
+        [xErr,yErr,zErr,phiErr,dt] = calcErr(r,x_a,curTime);
+        [thrust, yaw, pitch, roll] = PIDcontroller(xErr,yErr,zErr,phiErr,dt);
+        TM_log(i,:) = [thrust, roll, pitch, yaw];
+        sendCFPIDdata(socket,thrust, yaw, pitch, roll);
+        errLog(end+1,:) = [xErr,yErr,zErr];
+        if(any(abs([xErr,yErr,zErr])>1))
+            disp('Err break')
+            break
         end
         
-        TM_log(i,:) = [T,M'];
-        Tlog(i) = 100*T/(MaxMotorThrust*4);
-%         [~,~,simOut] = simHybridVehicleOnly(simState, T,M, [0, 0.002]);
-%         pTime = pTime+0.002;
-%         simState = simOut(end,1:18)';
-%         figure(16);
-%         hold on;
-%         scatter3(simOut(:,1),simOut(:,2),simOut(:,3))
-%         figure(17);
-%         hold off
-%         scatter3(simOut(:,1),simOut(:,2),simOut(:,3))
-%         hold on;
-%         scatter3(r(i+1,2),r(i+1,3),r(i+1,4),'r')
-        [cmdlog(i,:), rawLog(i,:)] = sendCFdata(socket,T,M);
-        
-%         if(~isempty(errLog))
-%             if(any(any(abs(errLog(:,1,end))>0.5)))
-%                 disp('Err break')
-%                 break
-%             end
-%         end
         loopDt = toc(loopTime);
-        if(loopDt < 0.010)
-            java.lang.Thread.sleep((0.010 - loopDt)*1000)
+        if(loopDt < 0.020)
+            java.lang.Thread.sleep((0.020 - loopDt)*1000)
         end
     end
-    str = ['{"m1": ',num2str(0),', "m2": ',num2str(0),', "m3": ',num2str(0),', "m4": ',num2str(0),'}'];
+    str = ['{"version":1, "client_name": "N/A", "ctrl": {"thrust": ',num2str(0.0),', "yaw": ',num2str(0.0),', "roll": ',num2str(0.0),', "pitch": ',num2str(0.0),'}}'];
     zmq.core.send(socket, uint8(str));
+    disp('BREAK')
 %     LoopTime
     ft = toc(fullTime)
     numPlans
-    disp(['Average update rate = ',num2str(numIt/ft)])
-    errLog
-    x_aLog(:,19:21)
-    global q_1Log
-    q_1Log
-%     a
-%     figure(1);
-%     plot3(x_a(:,1), x_a(:,2), x_a(:,3), 'b');
-%     hold on;
-%     xlabel('x');
-%     ylabel('y');
-%     zlabel('z');
-% %     for i = 1:size(x_o)
-% %         x_o_1 = cell2mat(x_o(i));
-% %         plot3(x_o_1(:,3), x_o_1(:,5), x_o_1(:,7), 'r');
-% %     end
-% %    
-
+    disp(['Average update rate = ',num2str(i/ft)])
+    pause
+%     errLog
 
     logSize = size(x_aLog)
+    size(x_oLog)
     c = autumn(logSize(1));
     figure
     hold on;
@@ -321,15 +262,17 @@ function runCFavoidance()
     plot3([r_log(1,2), r_log(1,2)+yaxis(1)], [r_log(1,3), r_log(1,3)+yaxis(2)], [r_log(1,4), r_log(1,4)+yaxis(3)],'k');
     scatter3(r(1,2), r(1,3), r(1,4), 'k');
     xlabel('x'); ylabel('y'); zlabel('z');
-    for i = 1:logSize(1)
-        up = reshape(x_aLog(i,7:15), [3,3])*[0;0;.1];
-        xaxis = reshape(x_aLog(i,7:15), [3,3])*[.1;0;0];
-        yaxis = reshape(x_aLog(i,7:15), [3,3])*[0;.1;0];
-        plot3([x_aLog(i,1), x_aLog(i,1)+xaxis(1)], [x_aLog(i,2), x_aLog(i,2)+xaxis(2)], [x_aLog(i,3), x_aLog(i,3)+xaxis(3)],'g');
-        plot3([x_aLog(i,1), x_aLog(i,1)+yaxis(1)], [x_aLog(i,2), x_aLog(i,2)+yaxis(2)], [x_aLog(i,3), x_aLog(i,3)+yaxis(3)],'b');
-        plot3([x_aLog(i,1), x_aLog(i,1)+up(1)], [x_aLog(i,2), x_aLog(i,2)+up(2)], [x_aLog(i,3), x_aLog(i,3)+up(3)], 'color', c(i,:));
-        scatter3(x_aLog(i,1), x_aLog(i,2), x_aLog(i,3), 'k');
-    end
+%     for i = 1:logSize(1)
+%         up = reshape(x_aLog(i,7:15), [3,3])*[0;0;.1];
+%         xaxis = reshape(x_aLog(i,7:15), [3,3])*[.1;0;0];
+%         yaxis = reshape(x_aLog(i,7:15), [3,3])*[0;.1;0];
+%         plot3([x_aLog(i,1), x_aLog(i,1)+xaxis(1)], [x_aLog(i,2), x_aLog(i,2)+xaxis(2)], [x_aLog(i,3), x_aLog(i,3)+xaxis(3)],'g');
+%         plot3([x_aLog(i,1), x_aLog(i,1)+yaxis(1)], [x_aLog(i,2), x_aLog(i,2)+yaxis(2)], [x_aLog(i,3), x_aLog(i,3)+yaxis(3)],'b');
+%         plot3([x_aLog(i,1), x_aLog(i,1)+up(1)], [x_aLog(i,2), x_aLog(i,2)+up(2)], [x_aLog(i,3), x_aLog(i,3)+up(3)], 'color', c(i,:));
+%         scatter3(x_aLog(i,1), x_aLog(i,2), x_aLog(i,3), 'k');
+%     end
+    scatter3(x_aLog(:,1), x_aLog(:,2), x_aLog(:,3), 'k');
+    scatter3(x_aLog(1,1), x_aLog(1,2), x_aLog(1,3), 'r');
     up = reshape(r_log(end,17:25), [3,3])*[0;0;.2];
     xaxis = reshape(r_log(end,17:25), [3,3])*[.2;0;0];
     yaxis = reshape(r_log(end,17:25), [3,3])*[0;.2;0];
@@ -337,79 +280,128 @@ function runCFavoidance()
     plot3([r_log(end,2), r_log(end,2)+xaxis(1)], [r_log(end,3), r_log(end,3)+xaxis(2)], [r_log(end,4), r_log(end,4)+xaxis(3)],'g');
     plot3([r_log(end,2), r_log(end,2)+yaxis(1)], [r_log(end,3), r_log(end,3)+yaxis(2)], [r_log(end,4), r_log(end,4)+yaxis(3)],'b');
     scatter3(r_log(:,2), r_log(:,3), r_log(:,4), 'r');
-    r(end,1)
+    scatter3(x_oLog(:,1), x_oLog(:,2), x_oLog(:,3), 'b');
+    scatter3(x_oLog(:,4), x_oLog(:,5), x_oLog(:,6), 'b');
     
-%     [SX,SY,SZ] = sphere();
-%     SXT = SX*TargetRad + Target(1);
-%     SYT = SY*TargetRad + Target(2);
-%     SZT = SZ*TargetRad + Target(3);
-%     tSurface = surface(SXT, SYT, SZT);
-%     set(tSurface,'FaceColor',[0 1 0], 'FaceAlpha',0.5,'FaceLighting','gouraud');
-%     hold off;
-    
-    figure
     [SX,SY,SZ] = sphere();
     SXT = SX*TargetRad + Target(1);
     SYT = SY*TargetRad + Target(2);
     SZT = SZ*TargetRad + Target(3);
     tSurface = surface(SXT, SYT, SZT);
     set(tSurface,'FaceColor',[0 1 0], 'FaceAlpha',0.5,'FaceLighting','gouraud');
-    hold on
-    for i = 1:logSize(1)
-        up = reshape(x_aLog(i,7:15), [3,3])*[0;0;.1];
-        xaxis = reshape(x_aLog(i,7:15), [3,3])*[.1;0;0];
-        yaxis = reshape(x_aLog(i,7:15), [3,3])*[0;.1;0];
-        plot3([x_aLog(i,1), x_aLog(i,1)+xaxis(1)], [x_aLog(i,2), x_aLog(i,2)+xaxis(2)], [x_aLog(i,3), x_aLog(i,3)+xaxis(3)],'g');
-        plot3([x_aLog(i,1), x_aLog(i,1)+yaxis(1)], [x_aLog(i,2), x_aLog(i,2)+yaxis(2)], [x_aLog(i,3), x_aLog(i,3)+yaxis(3)],'b');
-        plot3([x_aLog(i,1), x_aLog(i,1)+up(1)], [x_aLog(i,2), x_aLog(i,2)+up(2)], [x_aLog(i,3), x_aLog(i,3)+up(3)], 'color', c(i,:));
-        scatter3(x_aLog(i,1), x_aLog(i,2), x_aLog(i,3), 'k');
-    end
+    hold off;
     
     figure
-    subplot(4,1,1);plot(1:numIt, cmdlog(:,1)/655.35);title("CMDs");ylabel('Percent');
-    subplot(4,1,2);plot(1:numIt, cmdlog(:,2)/655.35);ylabel('Percent');
-    subplot(4,1,3);plot(1:numIt, cmdlog(:,3)/655.35);ylabel('Percent');
-    subplot(4,1,4);plot(1:numIt, cmdlog(:,4)/655.35);ylabel('Percent');
-    
-    figure
-    subplot(4,1,1);plot(1:numIt, TM_log(:,1));title("TMs");
-    subplot(4,1,2);plot(1:numIt, TM_log(:,2)); yline(d_xy*MaxMotorThrust);
-    subplot(4,1,3);plot(1:numIt, TM_log(:,3)); yline(d_xy*MaxMotorThrust);
-    subplot(4,1,4);plot(1:numIt, TM_log(:,4))
-    
-    figure
-    subplot(4,1,1);plot(1:numIt, rawLog(:,1));title("Raw Motor Vals"); ylabel('Newtons');
-    yline(MaxMotorThrust);yline(0);
-    subplot(4,1,2);plot(1:numIt, rawLog(:,2)); ylabel('Newtons');
-    yline(MaxMotorThrust);yline(0);
-    subplot(4,1,3);plot(1:numIt, rawLog(:,3)); ylabel('Newtons');
-    yline(MaxMotorThrust);yline(0);
-    subplot(4,1,4);plot(1:numIt, rawLog(:,4)); ylabel('Newtons');
-    yline(MaxMotorThrust);yline(0);
+    subplot(3,1,1); hold on; plot(x_aLog(:,end), x_aLog(:,1)); plot(x_aLog(:,end), x_oLog(:,1)); plot(x_aLog(:,end), x_oLog(:,4)); plot(r_log(:,1), r_log(:,2));
+    subplot(3,1,2); hold on; plot(x_aLog(:,end), x_aLog(:,2)); plot(x_aLog(:,end), x_oLog(:,2)); plot(x_aLog(:,end), x_oLog(:,5)); plot(r_log(:,1), r_log(:,3));
+    subplot(3,1,3); hold on; plot(x_aLog(:,end), x_aLog(:,3)); plot(x_aLog(:,end), x_oLog(:,3)); plot(x_aLog(:,end), x_oLog(:,6)); plot(r_log(:,1), r_log(:,4));
     
 %     figure
+%     xlabel('x'); ylabel('y'); zlabel('z');
+%     [SX,SY,SZ] = sphere();
+%     SXT = SX*TargetRad + Target(1);
+%     SYT = SY*TargetRad + Target(2);
+%     SZT = SZ*TargetRad + Target(3);
+%     tSurface = surface(SXT, SYT, SZT);
+%     set(tSurface,'FaceColor',[0 1 0], 'FaceAlpha',0.5,'FaceLighting','gouraud');
 %     hold on
-%     simState = x_aLog(1,1:18);
-%     for i = floor(1:numIt)
-% %         simState = x_aLog(i,1:18)
-%         [~,~,simOut] = simHybridVehicleOnly(simState', TM_log(i,1), TM_log(i,2:4)', [0, 0.01]);
-%         simState = simOut(end,1:18);
-% %         simOut = cell2mat(simLog(i));
-%         scatter3(simOut(:,1),simOut(:,2),simOut(:,3),'rx');
-% %         up = reshape(simOut(end,7:15), [3,3])*[0;0;.01];
-% %         xaxis = reshape(simOut(end,7:15), [3,3])*[.01;0;0];
-% %         yaxis = reshape(simOut(end,7:15), [3,3])*[0;.01;0];
-% %         plot3([simOut(end,1), simOut(end,1)+xaxis(1)], [simOut(end,2), simOut(end,2)+xaxis(2)], [simOut(end,3), simOut(end,3)+xaxis(3)],'g');
-% %         plot3([simOut(end,1), simOut(end,1)+yaxis(1)], [simOut(end,2), simOut(end,2)+yaxis(2)], [simOut(end,3), simOut(end,3)+yaxis(3)],'b');
-% %         plot3([simOut(end,1), simOut(end,1)+up(1)], [simOut(end,2), simOut(end,2)+up(2)], [simOut(end,3), simOut(end,3)+up(3)], 'color', c(i,:));
+%     for i = 1:logSize(1)
+%         up = reshape(x_aLog(i,7:15), [3,3])*[0;0;.1];
+%         xaxis = reshape(x_aLog(i,7:15), [3,3])*[.1;0;0];
+%         yaxis = reshape(x_aLog(i,7:15), [3,3])*[0;.1;0];
+%         plot3([x_aLog(i,1), x_aLog(i,1)+xaxis(1)], [x_aLog(i,2), x_aLog(i,2)+xaxis(2)], [x_aLog(i,3), x_aLog(i,3)+xaxis(3)],'g');
+%         plot3([x_aLog(i,1), x_aLog(i,1)+yaxis(1)], [x_aLog(i,2), x_aLog(i,2)+yaxis(2)], [x_aLog(i,3), x_aLog(i,3)+yaxis(3)],'b');
+%         plot3([x_aLog(i,1), x_aLog(i,1)+up(1)], [x_aLog(i,2), x_aLog(i,2)+up(2)], [x_aLog(i,3), x_aLog(i,3)+up(3)], 'color', c(i,:));
+%         scatter3(x_aLog(i,1), x_aLog(i,2), x_aLog(i,3), 'k');
 %     end
+    
+    TM_log
+    save('TestData5.mat', 'x_aLog', 'x_oLog', 'r_log', 'Target');
+end
 
+function [xErr, yErr, zErr, phiErr, dt] = calcErr(r, x_a, t)
+    global resetPIDs
+    persistent lastT yawset
+    if isempty(lastT) || resetPIDs
+        lastT = 0;
+        yawset = 1;
+    end
+    dt = t - lastT;
+
+    if(t < r(end,1))
+        refpt = interp1(r(:,1),r(:,2:end),t)';
+    else
+        refpt = r(end,2:end)';
+    end
+    
+    xErr = x_a(1) - refpt(1);
+    yErr = x_a(2) - refpt(2);
+    zErr = x_a(3) - refpt(3);
+    [xdeg,ydeg,phiErr] = rot2eul(reshape(x_a(7:15),[3,3]));
+    if(abs(phiErr)>5 & ~ yawset)
+        yawset = 1;
+        xErr = 0;
+        yErr = 0;
+    end
+        
+end
+
+
+function [T,Y,P,R] = PIDcontroller(xErr, yErr, zErr, phiErr, dt)
+    global resetPIDs
+    persistent x_cumm_error y_cumm_error z_cumm_error phi_cumm_error
+    persistent x_prev_error y_prev_error z_prev_error phi_prev_error
+    
+    if resetPIDs || isempty(x_cumm_error)
+        x_cumm_error = 0;
+        y_cumm_error = 0;
+        z_cumm_error = 0;
+        phi_cumm_error = 0;
+        x_prev_error = xErr;
+        y_prev_error = yErr;
+        z_prev_error = zErr;
+        phi_prev_error = phiErr;
+        resetPIDs = 0;
+    end
+    
+    K_p_x = 500;
+    K_i_x = 2;
+    K_d_x = 0;
+    
+    K_p_y = K_p_x;
+    K_i_y = K_i_x;
+    K_d_y = K_d_x;
+    
+    K_p_z = 25;
+    K_i_z = 1;
+    K_d_z = 0.01;
+    GravThrust = 62;
+    
+    K_p_phi = 10;
+    K_i_phi = 0;
+    K_d_phi = 0.01;
+    
+    x_cumm_error = x_cumm_error + xErr*dt;
+    R = (K_p_x*xErr) + (K_i_x*x_cumm_error) + (K_d_x*(xErr-x_prev_error)/dt);
+    x_prev_error = xErr;
+    
+    y_cumm_error = y_cumm_error + yErr*dt;
+    P = (K_p_y*yErr) + (K_i_y*y_cumm_error) + (K_d_y*(yErr-y_prev_error)/dt);
+    y_prev_error = yErr;
+    
+    phi_cumm_error = phi_cumm_error + phiErr*dt;
+    Y = (K_p_phi*phiErr) + (K_i_phi*phi_cumm_error) + (K_d_phi*(phiErr-phi_prev_error)/dt);
+    phi_prev_error = phiErr;
+    
+    z_cumm_error = z_cumm_error + zErr*dt;
+    T = GravThrust + (K_p_z*zErr) + (K_i_z*z_cumm_error) + (K_d_z*(zErr-z_prev_error)/dt);
+    z_prev_error = zErr;
 end
 
 function cleanupFunc(Client, socket)
     Client.Uninitialize();
-%     str = ['{"version":1, "client_name": "N/A", "ctrl": {"thrust": ',num2str(0.0),', "yaw": ',num2str(0.0),', "roll": ',num2str(0.0),', "pitch": ',num2str(0.0),'}}'];
-    str = ['{"m1": ',num2str(0),', "m2": ',num2str(0),', "m3": ',num2str(0),', "m4": ',num2str(0),'}'];
+    str = ['{"version":1, "client_name": "N/A", "ctrl": {"thrust": ',num2str(0.0),', "yaw": ',num2str(0.0),', "roll": ',num2str(0.0),', "pitch": ',num2str(0.0),'}}'];
+%     str = ['{"m1": ',num2str(0),', "m2": ',num2str(0),', "m3": ',num2str(0),', "m4": ',num2str(0),'}'];
     zmq.core.send(socket, uint8(str));
 end
 
@@ -508,47 +500,12 @@ function out = S(x)
 end
 
 %[pitch, roll, yaw]
-function  [cmds,rawMs] = sendCFdata(socket,T,M)
-    global d_xy MaxMotorThrust
-    kappa = 0.005964552;%-10.311 * 10^-7;
-    
-%     % Force smaller yaw values
-%     kappa = kappa*100;
-
-%     M(1:2) = M(1:2)/(norm(M(1:2)) * (MaxMotorThrust*4-T)*d_xy);
-    
-    m1 = [ -1/(4*d_xy), -1/(4*d_xy),  1/(4*kappa), 1/4] * [M;T];
-    m2 = [  1/(4*d_xy), -1/(4*d_xy), -1/(4*kappa), 1/4] * [M;T];
-    m3 = [  1/(4*d_xy),  1/(4*d_xy),  1/(4*kappa), 1/4] * [M;T];
-    m4 = [ -1/(4*d_xy),  1/(4*d_xy), -1/(4*kappa), 1/4] * [M;T];
-    
-    rawMs = [m1, m2, m3, m4];
-
-    if(any(abs(rawMs) > MaxMotorThrust) & T < MaxMotorThrust*0.95)
-        cmds = [0 0 0 0];
-        return
-    end
-    
-    m1 = max(0,m1);
-    m2 = max(0,m2);
-    m3 = max(0,m3);
-    m4 = max(0,m4);
-%     minThrust = MaxMotorThrust*0.4;
-%     m1 = max(minThrust,m1);
-%     m2 = max(minThrust,m2);
-%     m3 = max(minThrust,m3);
-%     m4 = max(minThrust,m4);
-    
-    cmd1 = (154742504910672534362390528*((6592943689973623*m1)/77371252455336267181195264 + 727608011901638924708917863587871/713623846352979940529142984724747568191373312)^(1/2))/6592943689973623 - 159792217073422499840/6592943689973623;
-    cmd2 = (154742504910672534362390528*((6592943689973623*m2)/77371252455336267181195264 + 727608011901638924708917863587871/713623846352979940529142984724747568191373312)^(1/2))/6592943689973623 - 159792217073422499840/6592943689973623;
-    cmd3 = (154742504910672534362390528*((6592943689973623*m3)/77371252455336267181195264 + 727608011901638924708917863587871/713623846352979940529142984724747568191373312)^(1/2))/6592943689973623 - 159792217073422499840/6592943689973623;
-    cmd4 = (154742504910672534362390528*((6592943689973623*m4)/77371252455336267181195264 + 727608011901638924708917863587871/713623846352979940529142984724747568191373312)^(1/2))/6592943689973623 - 159792217073422499840/6592943689973623;
-    
-    cmds = min(65535, max(0,floor([cmd1, cmd2, cmd3, cmd4])));
-    
-%     cmds = floor([65535,65535,65535,65535]*0.4);
-    
-    str = ['{"m1": ',num2str(cmds(1)),', "m2": ',num2str(cmds(2)),', "m3": ',num2str(cmds(3)),', "m4": ',num2str(cmds(4)), '}'];
+function sendCFPIDdata(socket,thrust, yaw, pitch, roll)
+    thrust = min(max(thrust, 45), 100);
+    yaw = min(max(yaw, -200), 200);
+    pitch = min(max(pitch, -30), 30);
+    roll = min(max(roll, -30), 30);
+    str = ['{"version":1, "client_name": "N/A", "ctrl": {"thrust": ',num2str(thrust),', "yaw": ',num2str(yaw),', "roll": ',num2str(roll),', "pitch": ',num2str(pitch),'}}'];
     if(zmq.core.send(socket, uint8(str)) == -1)
         error("Bad send")
     end

@@ -62,13 +62,11 @@ function [phis,rs] = genSafeTraj(x_a, U)
             end
             
             if(i == 1)
-                numT = 0;
                 numXos = size(xos(:,1,1));
                 objColStepMaxed = min(objColStep, floor(numXos(1)/2));
                 hullPts = zeros(spherePts*(spherePts-1)*(4*(objColStepMaxed+1)),3);
                 for t = 1:max(objColStepMaxed,1):max(numXos(1)-objColStepMaxed,1)
-                    numT = numT +1;
-                    tVals(numT,j) = t;
+                    tVals(end+1) = t;
                     %Unroll points in sphere arond each point
                     pt_count = 0;
                     % Build convext hull over subset of obstacle samapled points
@@ -101,20 +99,11 @@ function [phis,rs] = genSafeTraj(x_a, U)
                 end
             end
 %                 ptstic = tic;
-            [tvr,trc] = size(tVals);
-            for tsel = 1:tvr
-                if(trc > 1 && j <= trc)
-                    t = max(tVals(tsel,j),1);
-                else
-                    t = max(tVals(tsel,1),1);
-                end
-                if(j <= trc)
-                    hullTess = tess(j,t,:);
-                else
-                    hullTess = tess(trc,t,:);
-                end
-                [tr, ~] = size(traj);
-                ptsInHull = inhull(traj(floor(tr/2):5:tr,3:5),hullTess{1}, hullTess{2});
+            for tsel = 1:size(tVals)
+                t = tVals(tsel);
+                hullTess = tess(j,t,:);
+                size()
+                ptsInHull = inhull(traj(:,3:5),hullTess{1}, hullTess{2});
 %                 ptstocs(i,j,t) = toc(ptstic);
                 if(any(ptsInHull))
                     unsafeFlag = 1;

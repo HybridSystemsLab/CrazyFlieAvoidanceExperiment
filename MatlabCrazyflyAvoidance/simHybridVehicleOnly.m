@@ -18,7 +18,7 @@ function out = f(x)
     pdot = x(4:6);
     vdot = -R*[0;0;1]*(T/Mass) + [0;0;-9.8];
     Rdot = R*S(x(16:18));
-    omegadot = -inv(J)*S(x(16:18))*J*x(16:18) + (J^-1 *M);
+    omegadot = -J\S(x(16:18))*J*x(16:18) + (J\M);
     out = [pdot; vdot; reshape(Rdot, [9 1]); omegadot; 0; zeros(3,1)];
 end
 

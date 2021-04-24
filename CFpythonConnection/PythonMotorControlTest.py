@@ -9,8 +9,7 @@ from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 
 # URI to the Crazyflie to connect to
-#uri = 'radio://0/100/2M/E7E7E7E7E7'
-uri = 'radio://0/80/2M/E7E7E7E7E7'
+uri = 'radio://0/100/2M/E7E7E7E7E7'
 
  
 def motor_set(cf, m1=0, m2=0, m3=0, m4=0):
@@ -37,8 +36,8 @@ if __name__ == '__main__':
 
         while(True):
             mVals = rcvsocket.recv_json()
-#            print(mVals)
-#            sys.stdout.flush()
-            motor_set(scf.cf, mVals['m1'],mVals['m2'],mVals['m3'],mVals['m4'])
+            print(mVals)
+            sys.stdout.flush()
+#            motor_set(scf.cf, mVals['m1'],mVals['m2'],mVals['m3'],mVals['m4'])
             
         motor_set(scf.cf)

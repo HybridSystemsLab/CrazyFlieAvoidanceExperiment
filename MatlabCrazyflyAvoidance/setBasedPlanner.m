@@ -52,6 +52,16 @@ function out = setBasedPlanner(x_a, x_o, costFun)
         ylabel('y');
         zlabel('z');
         daspect([1 1 1])
+        
+        f78 = figure(78);
+        clf(f78)
+        numRef = size(r);
+        hold on;
+        for i = 1:numRef(1)
+            ref = cell2mat(r(i));
+%             plot3(ref(:,2),ref(:,3),ref(:,4));
+            scatter3(ref(end,2),ref(end,3),ref(end,4));
+        end
     end
     
     %Find "optimal" trajectory
@@ -61,14 +71,15 @@ function out = setBasedPlanner(x_a, x_o, costFun)
     end
     if(useMotionPrim)
         temppath = cell2mat(phi(1));
-        [~,~,yawAng] = rot2eul(x_a(7:15));
-        yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
+%         [~,~,yawAng] = rot2eul(x_a(7:15));
+%         yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
         [rr, ~] = size(temppath);
-        spunpath = [temppath(:,1:2), temppath(:,3:5)*yawRot', temppath(:,6:8)*yawRot', zeros(rr,9), temppath(:,18:20)];
+%         spunpath = [temppath(:,1:2), temppath(:,3:5)*yawRot', temppath(:,6:8)*yawRot', zeros(rr,9), temppath(:,18:20)];
 %         for ri = 1:rr
 %             spunpath(ri,9:17) = reshape(yawRot*reshape(temppath(ri,9:17),[3,3]),[1,9]);
 %         end
-        path = spunpath + [zeros(rr,2), x_a(1:3)' + x_a(4:6)'.*temppath(:,1), repmat(x_a(4:6)', [rr,1]), zeros(rr,12)];
+%         path = spunpath + [zeros(rr,2), x_a(1:3)' + x_a(4:6)'.*temppath(:,1), repmat(x_a(4:6)', [rr,1]), zeros(rr,12)];
+        path = temppath + [zeros(rr,2), x_a(1:3)' + x_a(4:6)'.*temppath(:,1), repmat(x_a(4:6)', [rr,1]), zeros(rr,12)];
 %         [pr, pc] = size(temppath);
 %         path = temppath + [zeros(pr,2), x_a(1:3)' + x_a(4:6)'.*temppath(:,1), repmat(x_a(4:6)', [pr,1]), zeros(pr,12)];
         if(any(isnan(path)))
@@ -77,20 +88,22 @@ function out = setBasedPlanner(x_a, x_o, costFun)
     else
         path = cell2mat(phi(1));
     end
-    closestPathVals = path(end,3:5);
+%     closestPathVals = path(end,3:5);
 %     closestTraj = [1, costFun(path(end,3:5), path(end,6:8), path(end,9:17))];
     closestTraj = [1, costFun(path)];
     for i=2:numTraj
         if(useMotionPrim)
             temppath = cell2mat(phi(i));
-            [~,~,yawAng] = rot2eul(x_a(7:15));
-            yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
+%             [~,~,yawAng] = rot2eul(x_a(7:15));
+%             yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
             [rr, ~] = size(temppath);
-            spunpath = [temppath(:,1:2), temppath(:,3:5)*yawRot', temppath(:,6:8)*yawRot', zeros(rr,9), temppath(:,18:20)];
+%             spunpath = [temppath(:,1:2), temppath(:,3:5)*yawRot', temppath(:,6:8)*yawRot', zeros(rr,9), temppath(:,18:20)];
 %             for ri = 1:rr
 %                 spunpath(ri,9:17) = reshape(yawRot*reshape(temppath(ri,9:17),[3,3]),[1,9]);
 %             end
-            path = spunpath + [zeros(rr,2), x_a(1:3)' + x_a(4:6)'.*temppath(:,1), repmat(x_a(4:6)', [rr,1]), zeros(rr,12)];
+%             path = spunpath + [zeros(rr,2), x_a(1:3)' + x_a(4:6)'.*temppath(:,1), repmat(x_a(4:6)', [rr,1]), zeros(rr,12)];
+%             path = [temppath(:,1:2), temppath(:,3:5)*yawRot' + x_a(1:3)' + x_a(4:6)'.*temppath(:,1), temppath(:,6:8)*yawRot' + x_a(4:6)', zeros(rr,9), temppath(:,18:20)];
+            path = temppath + [zeros(rr,2), x_a(1:3)' + x_a(4:6)'.*temppath(:,1), repmat(x_a(4:6)', [rr,1]), zeros(rr,12)];
 %             [pr, pc] = size(temppath);
 %             path = temppath + [zeros(pr,2), x_a(1:3)' + x_a(4:6)'.*temppath(:,1), repmat(x_a(4:6)', [pr,1]), zeros(pr,12)];
             if(any(isnan(path)))
@@ -113,14 +126,15 @@ function out = setBasedPlanner(x_a, x_o, costFun)
     if(useMotionPrim)
 %         out = cell2mat(r(closestTraj(1))) + [0; x_a(1:3) + executeTime*x_a(4:6); x_a(4:6); zeros(24,1)]';
         tempr = cell2mat(r(closestTraj(1)));
-        [~,~,yawAng] = rot2eul(x_a(7:15));
-        yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
+%         [~,~,yawAng] = rot2eul(x_a(7:15));
+%         yawRot = [cos(yawAng) -sin(yawAng) 0; sin(yawAng) cos(yawAng) 0; 0 0 1];
         [rr, ~] = size(tempr);
-        spunr = [tempr(:,1), tempr(:,2:4)*yawRot', tempr(:,5:7)*yawRot', tempr(:,8:10)*yawRot', tempr(:,11:13)*yawRot', tempr(:,14:16)*yawRot', zeros(rr,9), tempr(:,26:31)];
-        for i = 1:rr
-            spunr(i,17:25) = reshape(yawRot*reshape(tempr(i,17:25),[3,3]),[1,9]);
-        end
-        out = spunr + [zeros(rr,1), x_a(1:3)' + x_a(4:6)'.*tempr(:,1), repmat(x_a(4:6)', [rr,1]), zeros(rr,24)];
+%         spunr = [tempr(:,1), tempr(:,2:4)*yawRot', tempr(:,5:7)*yawRot', tempr(:,8:10)*yawRot', tempr(:,11:13)*yawRot', tempr(:,14:16)*yawRot', zeros(rr,9), tempr(:,26:31)];
+%         for i = 1:rr
+%             spunr(i,17:25) = reshape(yawRot*reshape(tempr(i,17:25),[3,3]),[1,9]);
+%         end
+%         out = spunr + [zeros(rr,1), x_a(1:3)' + x_a(4:6)'.*tempr(:,1), repmat(x_a(4:6)', [rr,1]), zeros(rr,24)];
+        out = tempr + [zeros(rr,1), x_a(1:3)' + x_a(4:6)'.*tempr(:,1), repmat(x_a(4:6)', [rr,1]), zeros(rr,24)];
     else
         out = cell2mat(r(closestTraj(1)));
     end
@@ -165,7 +179,7 @@ function [thetaX, thetaY, thetaZ] = rot2eul(R)
         thetaZ = atan2(-R(6) , R(5));
         thetaX = 0;
     end
-    thetaX = rad2deg(thetaX);
-    thetaY = rad2deg(thetaY);
-    thetaZ = rad2deg(thetaZ);
+%     thetaX = rad2deg(thetaX);
+%     thetaY = rad2deg(thetaY);
+%     thetaZ = rad2deg(thetaZ);
 end

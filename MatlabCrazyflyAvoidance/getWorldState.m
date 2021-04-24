@@ -1,5 +1,6 @@
-function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
+function [t, pos, vel, outR, omega, objState, x_oLog] = getWorldState(Client, obj_ID, getObjs, x_oLogIN)
     debug = 0;
+    x_oLog = x_oLogIN;
     if(debug == 1)
     %Set up optitrak
         dllPath = fullfile('c:','Users','yzeleke','Desktop','HSL_exp','NatNetSDK','lib','x64','NatNetML.dll');
@@ -12,9 +13,9 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
     end
     
     Rpos = [-1, 0, 0; 0 0 1; 0 1 0];
-    Rq = eye(3);
+%     Rq = eye(3);
     Rq = [1, 0, 0; 0 -1 0; 0 0 -1];
-
+    
     persistent lastPos lastRot lastT
     frameOfData = Client.GetLastFrameOfData();
     vehicle_pose = frameOfData.RigidBodies(obj_ID);
@@ -44,48 +45,56 @@ function [t, pos, vel, outR, omega, objState] = getWorldState(Client, obj_ID)
     
     
     % Identify and report on obstacles
-    firstObjPos = 0;
-    global sigma_max
-    persistent lastObjPos lastObjNum
-    if isempty(lastObjPos)
-        firstObjPos = 1;
-    end
-    
-%     objPos = zeros(3,frameOfData.nOtherMarkers);
-    
     objState = {};
-    nskip = 0;
-    objPos = [];
-    for i = 1:double(frameOfData.nOtherMarkers)
-        obj = frameOfData.OtherMarkers(i);
-        tempPos = Rpos*[obj.x;obj.y;obj.z];
-        if(norm(tempPos - pos) < 0.2)
-            nskip = nskip+1;
-            continue
+    if(getObjs)
+        firstObjPos = 0;
+        global sigma_max
+        persistent lastObjPos lastObjNum
+        if isempty(lastObjPos)
+            firstObjPos = 1;
         end
-        obji = i-nskip;
-        objPos(:,obji) = tempPos;
-        if(firstObjPos)
-            lastObjPos(:,obji) = objPos(:,obji);
-        else
-            if(lastObjNum < double(frameOfData.nOtherMarkers))
-                for j = lastObjNum:double(frameOfData.nOtherMarkers)
-                    lastObjPos(:,j) = objPos(:,obji);
+
+    %     objPos = zeros(3,frameOfData.nOtherMarkers);
+
+%         objState = {};
+        nskip = 0;
+        objPos = [];
+        obji = 0;
+        for i = 1:double(frameOfData.nOtherMarkers)
+            obj = frameOfData.OtherMarkers(i);
+            tempPos = Rpos*[obj.x;obj.y;obj.z];
+            if(norm(tempPos - pos) < 0.1)
+                nskip = nskip+1;
+                continue
+            end
+            obji = i-nskip;
+            objPos(:,obji) = tempPos;
+            if(firstObjPos)
+                lastObjPos(:,obji) = objPos(:,obji);
+            else
+                if(lastObjNum < obji)
+                    for j = lastObjNum:obji
+                        lastObjPos(:,j) = objPos(:,obji);
+                    end
                 end
             end
+            if(t - lastT ~= 0)
+                objVel(:,obji) = (objPos(:,obji) - lastObjPos(:,obji))/(t - lastT);
+            else
+                objVel(:,obji) = [0;0;0];
+            end
+            
+            if(obji==1)
+                x_oLog(end+1,1:6) = [objPos(:,obji)', 0,0,0];
+            else
+                x_oLog(end,4:6) = objPos(:,obji)';
+            end
+            
+            objState(obji,:) = mat2cell([0,0,objPos(1,obji),objVel(1,obji),objPos(2,obji),objVel(2,obji),objPos(3,obji),objVel(3,obji), -sigma_max, sigma_max], 1, 10);
         end
-        if(t - lastT ~= 0)
-            objVel(:,obji) = (objPos(:,obji) - lastObjPos(:,obji))/(t - lastT);
-        else
-            objVel(:,obji) = [0;0;0];
-        end
-        objState(:,obji) = mat2cell([0,0,objPos(1,obji),objVel(1,obji),objPos(2,obji),objVel(2,obji),objPos(3,obji),objVel(3,obji), -sigma_max, sigma_max], 1, 10);
+        lastObjPos = objPos;
+        lastObjNum = obji;
     end
-    lastObjPos = objPos;
-    [~,lastObjNum] = size(objPos);
-%     if(debug == 1)
-%         Client.Uninitialize();
-%     end
 end
 
 function omega = calcOmega(R, lastR, dt)

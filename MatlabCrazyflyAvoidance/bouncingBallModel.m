@@ -3,13 +3,13 @@ function [tout, jout, xout] = bouncingBallModel(x0, simTime)
 %     TSPAN = [0, simTime];
 %     JSPAN = [0, max(10,2*simTime)]; % allow two bounces per second
 %     [tout,jout,xout] = HyEQsolver(@fobj,@gobj,@Cobj,@Dobj,x0,TSPAN,JSPAN,1,HEQOptions);
-    timeStep = 0.01;
+    timeStep = 0.05;
     x = x0;
     t = 0;
     j = 0;
-    tjx = zeros(simTime/timeStep +1, 10);
+    tjx = zeros(floor(simTime/timeStep) +1, 10);
     tjx(1,:) = [t,j,x0];
-    for i = 2:floor(simTime/timeStep)+1
+    for i = 2:floor(2*simTime/timeStep)+1
         if(Dobj(x'))
             x = gobj(x')';
             j = j+1;
